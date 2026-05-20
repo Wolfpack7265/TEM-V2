@@ -17,8 +17,8 @@ extern lv_obj_t * ui_Screen1;
 extern lv_obj_t * ui_Container1;
 extern lv_obj_t * ui_MainGaugeEmpty;
 extern lv_obj_t * ui_MainGaugeFull;
-extern lv_obj_t * ui_CenterLabel;
 extern lv_obj_t * ui_Secondary_Gauge;
+extern lv_obj_t * ui_CenterLabel;
 extern lv_obj_t * ui_SecondaryLabel;
 // CUSTOM VARIABLES
 

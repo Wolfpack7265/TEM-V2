@@ -9,8 +9,8 @@ lv_obj_t * ui_Screen1 = NULL;
 lv_obj_t * ui_Container1 = NULL;
 lv_obj_t * ui_MainGaugeEmpty = NULL;
 lv_obj_t * ui_MainGaugeFull = NULL;
-lv_obj_t * ui_CenterLabel = NULL;
 lv_obj_t * ui_Secondary_Gauge = NULL;
+lv_obj_t * ui_CenterLabel = NULL;
 lv_obj_t * ui_SecondaryLabel = NULL;
 // event funtions
 
@@ -44,17 +44,7 @@ void ui_Screen1_screen_init(void)
     lv_obj_add_flag(ui_MainGaugeFull, LV_OBJ_FLAG_ADV_HITTEST);     /// Flags
     lv_obj_clear_flag(ui_MainGaugeFull, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
-    ui_CenterLabel = lv_label_create(ui_Screen1);
-    lv_obj_set_width(ui_CenterLabel, 30);
-    lv_obj_set_height(ui_CenterLabel, 50);
-    lv_obj_set_align(ui_CenterLabel, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_CenterLabel, "4");
-    lv_obj_set_style_text_color(ui_CenterLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_CenterLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_align(ui_CenterLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_CenterLabel, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_Secondary_Gauge = lv_arc_create(ui_Screen1);
+    ui_Secondary_Gauge = lv_arc_create(ui_MainGaugeEmpty);
     lv_obj_set_width(ui_Secondary_Gauge, 410);
     lv_obj_set_height(ui_Secondary_Gauge, 410);
     lv_obj_set_align(ui_Secondary_Gauge, LV_ALIGN_CENTER);
@@ -74,6 +64,16 @@ void ui_Screen1_screen_init(void)
     lv_obj_set_style_outline_opa(ui_Secondary_Gauge, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
     lv_obj_set_style_blend_mode(ui_Secondary_Gauge, LV_BLEND_MODE_NORMAL, LV_PART_KNOB | LV_STATE_DEFAULT);
     lv_obj_set_style_opa(ui_Secondary_Gauge, 0, LV_PART_KNOB | LV_STATE_DEFAULT);
+
+    ui_CenterLabel = lv_label_create(ui_Screen1);
+    lv_obj_set_width(ui_CenterLabel, 30);
+    lv_obj_set_height(ui_CenterLabel, 50);
+    lv_obj_set_align(ui_CenterLabel, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_CenterLabel, "4");
+    lv_obj_set_style_text_color(ui_CenterLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_CenterLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_CenterLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_CenterLabel, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_SecondaryLabel = lv_label_create(ui_Screen1);
     lv_obj_set_width(ui_SecondaryLabel, LV_SIZE_CONTENT);   /// 1
@@ -95,8 +95,8 @@ void ui_Screen1_screen_destroy(void)
     ui_Container1 = NULL;
     ui_MainGaugeEmpty = NULL;
     ui_MainGaugeFull = NULL;
-    ui_CenterLabel = NULL;
     ui_Secondary_Gauge = NULL;
+    ui_CenterLabel = NULL;
     ui_SecondaryLabel = NULL;
 
 }
