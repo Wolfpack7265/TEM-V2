@@ -1,49 +1,29 @@
 #include <Arduino.h>
-#include "NimBLEDevice.h"
-#include <Wire.h>
-#include <ELMduino.h>
 #include <TRGBSuppport.h>
+#include <lvgl.h>
+#include "ui/ui.h" // Import the generated UI header
 
 TRGBSuppport trgb;
+void setup() {
+  Serial.begin(115200);
 
+  delay(100);   // Rumors say it helps avoid sporadical crashes after wakeup from deep-sleep
+  trgb.init();
 
-#define LED 2
-ELM327 myELM327;
+  // Print some info to Serial
+  TRGBSuppport::print_chip_info();
+  TRGBSuppport::scan_iic();
 
-// put function declarations here:
-int myFunction(int, int);
+  // Initialize SD Card. It can be accessed by SD_MMC object.
+  trgb.SD_init();
 
-void setup()
-{
-Serial.begin(115200);
+  // load UI
+  ui_init();
 
-NimBLEDevice::init("");
-
-NimBLEScan *pScan = NimBLEDevice::getScan();
-NimBLEScanResults results = pScan->start(10);
-
-NimBLEUUID serviceUuid("VEEPEAK");
-
-for(int i =0; i< results.getCount(); i++){
-  NimBLEAdvertisedDevice device = results.getDevice(i);
-  Serial.println(i);
-  if (device.isAdvertisingService(serviceUuid)){
-    NimBLEClient *pClient = NimBLEDevice::createClient();
-
-    if(pClient->connect(&device)) {
-    //success
-    } else {
-    // failed to connect
-    }
-    }
-  }
+    
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
-
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+    lv_timer_handler(); // Handles animations and drawing
+    delay(5);
 }
