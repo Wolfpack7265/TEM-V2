@@ -16,6 +16,6 @@ lv_img_dsc_t ui_img_screen_sc4_png = {
 
 void ui_img_screen_sc4_png_load()
 {
-    ui_img_screen_sc4_png.data = UI_LOAD_IMAGE("S:assets/ui_img_screen_sc4_png.bin", 691200);
+    ui_img_screen_sc4_png.data = UI_LOAD_IMAGE("S:assets/ui_img_screen_sc4_png.bin", 3583, 691200);
     ui_img_screen_sc4_png.data_size = 691200;
 }
