@@ -2,7 +2,22 @@ SET(SOURCES screens/ui_Screen1.c
     ui.c
     components/ui_comp_hook.c
     ui_helpers.c
-    images/ui_img_screen_1_empty_png.c
-    images/ui_img_screen_1_full_png.c)
+    ui_img_manager.c
+    images/ui_img_screen_bg_png.c
+    images/ui_img_screen_sc1_png.c
+    images/ui_img_screen_sc2_png.c
+    images/ui_img_screen_sc3_png.c
+    images/ui_img_screen_sc4_png.c
+    images/ui_img_screen_sc5_png.c
+    images/ui_img_screen_sc6_png.c
+    images/ui_img_screen_sc7_png.c
+    images/ui_img_screen_sc8_png.c
+    images/ui_img_screen_sc9_png.c
+    images/ui_img_screen_sc10_png.c
+    images/ui_img_screen_sc11_png.c
+    images/ui_img_screen_sc12_png.c
+    images/ui_img_screen_sc13_png.c
+    images/ui_img_screen_sc14_png.c
+    images/ui_img_screen_sc15_png.c)
 
 add_library(ui ${SOURCES})

@@ -16,10 +16,25 @@ extern void ui_Screen1_screen_destroy(void);
 extern lv_obj_t * ui_Screen1;
 extern lv_obj_t * ui_Container1;
 extern lv_obj_t * ui_MainGaugeEmpty;
-extern lv_obj_t * ui_MainGaugeFull;
-extern lv_obj_t * ui_Secondary_Gauge;
+extern lv_obj_t * ui_Container2;
+extern lv_obj_t * ui_Section1;
+extern lv_obj_t * ui_Section2;
+extern lv_obj_t * ui_Section3;
+extern lv_obj_t * ui_Section4;
+extern lv_obj_t * ui_Section5;
+extern lv_obj_t * ui_Section6;
+extern lv_obj_t * ui_Section7;
+extern lv_obj_t * ui_Section8;
+extern lv_obj_t * ui_Section9;
+extern lv_obj_t * ui_Section10;
+extern lv_obj_t * ui_Section11;
+extern lv_obj_t * ui_Section12;
+extern lv_obj_t * ui_Section13;
+extern lv_obj_t * ui_Section14;
+extern lv_obj_t * ui_Section15;
 extern lv_obj_t * ui_CenterLabel;
 extern lv_obj_t * ui_SecondaryLabel;
+extern lv_obj_t * ui_Secondary_Gauge;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

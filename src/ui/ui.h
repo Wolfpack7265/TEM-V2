@@ -15,6 +15,7 @@ extern "C" {
 #include "ui_helpers.h"
 #include "ui_events.h"
 
+#include "ui_img_manager.h"
 
 ///////////////////// SCREENS ////////////////////
 
@@ -29,8 +30,38 @@ extern lv_anim_t * GaugeSweep_Animation(lv_obj_t * TargetObject, int delay);
 extern lv_obj_t * ui____initial_actions0;
 
 // IMAGES AND IMAGE SETS
-LV_IMG_DECLARE(ui_img_screen_1_empty_png);    // assets/Screen 1 empty.png
-LV_IMG_DECLARE(ui_img_screen_1_full_png);    // assets/Screen 1 full.png
+extern lv_img_dsc_t ui_img_screen_bg_png;   // assets/Screen bg.png
+void ui_img_screen_bg_png_load();
+extern lv_img_dsc_t ui_img_screen_sc1_png;   // assets/Screen sc1.png
+void ui_img_screen_sc1_png_load();
+extern lv_img_dsc_t ui_img_screen_sc2_png;   // assets/Screen sc2.png
+void ui_img_screen_sc2_png_load();
+extern lv_img_dsc_t ui_img_screen_sc3_png;   // assets/Screen sc3.png
+void ui_img_screen_sc3_png_load();
+extern lv_img_dsc_t ui_img_screen_sc4_png;   // assets/Screen sc4.png
+void ui_img_screen_sc4_png_load();
+extern lv_img_dsc_t ui_img_screen_sc5_png;   // assets/Screen sc5.png
+void ui_img_screen_sc5_png_load();
+extern lv_img_dsc_t ui_img_screen_sc6_png;   // assets/Screen sc6.png
+void ui_img_screen_sc6_png_load();
+extern lv_img_dsc_t ui_img_screen_sc7_png;   // assets/Screen sc7.png
+void ui_img_screen_sc7_png_load();
+extern lv_img_dsc_t ui_img_screen_sc8_png;   // assets/Screen sc8.png
+void ui_img_screen_sc8_png_load();
+extern lv_img_dsc_t ui_img_screen_sc9_png;   // assets/Screen sc9.png
+void ui_img_screen_sc9_png_load();
+extern lv_img_dsc_t ui_img_screen_sc10_png;   // assets/Screen sc10.png
+void ui_img_screen_sc10_png_load();
+extern lv_img_dsc_t ui_img_screen_sc11_png;   // assets/Screen sc11.png
+void ui_img_screen_sc11_png_load();
+extern lv_img_dsc_t ui_img_screen_sc12_png;   // assets/Screen sc12.png
+void ui_img_screen_sc12_png_load();
+extern lv_img_dsc_t ui_img_screen_sc13_png;   // assets/Screen sc13.png
+void ui_img_screen_sc13_png_load();
+extern lv_img_dsc_t ui_img_screen_sc14_png;   // assets/Screen sc14.png
+void ui_img_screen_sc14_png_load();
+extern lv_img_dsc_t ui_img_screen_sc15_png;   // assets/Screen sc15.png
+void ui_img_screen_sc15_png_load();
 
 // UI INIT
 void ui_init(void);
