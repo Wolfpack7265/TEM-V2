@@ -37,10 +37,10 @@ void ui_Screen1_screen_init(void)
     lv_obj_clear_flag(ui_MainGaugeEmpty, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
     ui_CenterLabel = lv_label_create(ui_Screen1);
-    lv_obj_set_width(ui_CenterLabel, 30);
+    lv_obj_set_width(ui_CenterLabel, 325);
     lv_obj_set_height(ui_CenterLabel, 50);
     lv_obj_set_align(ui_CenterLabel, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_CenterLabel, "4");
+    lv_label_set_text(ui_CenterLabel, "4\n");
     lv_obj_set_style_text_color(ui_CenterLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_CenterLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_CenterLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -80,7 +80,7 @@ void ui_Screen1_screen_init(void)
     lv_obj_set_width(ui_Main_Gauge, 460);
     lv_obj_set_height(ui_Main_Gauge, 460);
     lv_obj_set_align(ui_Main_Gauge, LV_ALIGN_CENTER);
-    lv_arc_set_value(ui_Main_Gauge, 50);
+    lv_arc_set_value(ui_Main_Gauge, 100);
     lv_arc_set_bg_angles(ui_Main_Gauge, 135, 45);
     lv_obj_set_style_arc_color(ui_Main_Gauge, lv_color_hex(0xD9D9D9), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_opa(ui_Main_Gauge, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
