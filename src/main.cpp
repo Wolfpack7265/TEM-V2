@@ -1,8 +1,51 @@
 #include <Arduino.h>
+#include "NimBLEDevice.h"
+
+void setup() {
+    Serial.begin(460800);
+    delay(2000); // Important: Wait for Serial to stabilize
+
+    Serial.println(">>> [DEBUG] Starting BLE Initialization...");
+    
+    // 1. Ensure any previous state is wiped
+    NimBLEDevice::deinit(true);
+    
+    // 2. Explicitly initialize
+    if (!NimBLEDevice::init("ESP32_Scanner")) {
+        Serial.println(">>> [ERROR] BLE Initialization failed!");
+        return;
+    }
+
+    // 3. Set the radio power explicitly
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+
+    Serial.println(">>> [DEBUG] Starting 10s scan...");
+    NimBLEScan* pScan = NimBLEDevice::getScan();
+    pScan->setActiveScan(true);
+    pScan->setInterval(100);
+    pScan->setWindow(99);
+    
+    // 4. Start the scan and capture the boolean success/fail
+    bool scanStarted = pScan->start(10, false);
+    
+    if (scanStarted) {
+        NimBLEScanResults results = pScan->getResults();
+        Serial.printf(">>> [DEBUG] Scan finished. Found %d devices.\n", results.getCount());
+        for(int i = 0; i < results.getCount(); i++) {
+            Serial.printf("Device %d: %s\n", i, results.getDevice(i)->getAddress().toString().c_str());
+        }
+    } else {
+        Serial.println(">>> [ERROR] Scan failed to start.");
+    }
+}
+
+void loop() {}
+/*
+#include <Arduino.h>
 #include <TRGBSuppport.h>
 #include <lvgl.h>
-#include "draw/lv_draw_mask.h" // You must include this specifically
-#include "ui/ui.h" // Import the generated UI header
+#include "draw/lv_draw_mask.h"
+#include "ui/ui.h"
 #include "FS.h"
 #include "SD.h"
 #include "ELMduino.h"
@@ -10,19 +53,58 @@
 #include <deque>
 
 ELM327 myELM327;
-
 TRGBSuppport trgb;
 
-static NimBLEAddress obdAddress("AA:BB:CC:11:22:33", 1);
+// Global variables needed by the callback
+static bool connected = false;
+static BLERemoteCharacteristic* pRemoteCharacteristic = nullptr;
+
+// Forward declaration of functions used in the callback
+static void notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify);
+void obdTask(void* parameter);
+
+// NOW define the class
+// 1. Define the class only ONCE
+class MyClientCallback : public NimBLEClientCallbacks {
+    void onConnect(NimBLEClient* pClient) override {
+        Serial.println(">>> [CALLBACK] Connected!");
+        if (!pClient->discoverAttributes()) {
+            pClient->disconnect();
+            return;
+        }
+        BLERemoteService* pService = pClient->getService("000018f0-0000-1000-8000-00805f9b34fb");
+        if (pService) {
+            pRemoteCharacteristic = pService->getCharacteristic("00002af1-0000-1000-8000-00805f9b34fb");
+            if (pRemoteCharacteristic) {
+                pRemoteCharacteristic->subscribe(true, notifyCallback);
+                connected = true;
+                xTaskCreate(obdTask, "OBDTask", 16384, NULL, 1, NULL);
+            }
+        }
+    }
+
+    // 2. Updated signature: Removed 'ble_gap_conn_desc*' if the compiler is strict,
+    // or keep it and remove 'override' if it still fails.
+    void onDisconnect(NimBLEClient* pClient) {
+        connected = false;
+        Serial.println(">>> [CALLBACK] Disconnected!");
+        pRemoteCharacteristic = nullptr;
+    }
+};
+// Now declare the static instance
+static MyClientCallback clientCB;
+
+// 3. Continue with other globals
+static NimBLEAddress obdAddress("00:10:cc:4f:36:03", 1); 
 static NimBLEClient* pClient = nullptr;
+
 static lv_style_t style_orange;
 static lv_style_t style_red;
+
 
 static int current_rpm = -1;
 
 static BLEAddress *pServerAddress;
-static BLERemoteCharacteristic *pRemoteCharacteristic;
-static bool connected = false;
 
 // ELMduino needs a Stream interface, so we map it here
 class OBDStream : public Stream {
@@ -72,7 +154,7 @@ void updateLabelAsync(const char* newText) {
 
 void obdTask(void* parameter) {
     bool initialized = false;
-    updateLabelAsync("connecting...");
+    updateLabelAsync("no connect");
 
     while (true) {
         if (connected && pRemoteCharacteristic != nullptr) {
@@ -95,12 +177,12 @@ void obdTask(void* parameter) {
                     }
                 } else if (myELM327.get_response() == ELM_TIMEOUT) {
                     initialized = false;
-                    current_rpm = -1; // Reset to "Disconnected" state
-                    updateLabelAsync("connecting...");
+                    current_rpm = -1; // Reset to "no connect" state
+                    updateLabelAsync("no connect");
                 }   else {
                     initialized = false;
-                    current_rpm = -1; // Reset to "Disconnected" state
-                    updateLabelAsync("connecting...");
+                    current_rpm = -1; // Reset to "no connect" state
+                    updateLabelAsync("no connect");
 }
             }
         }
@@ -131,30 +213,6 @@ void onConnect(NimBLEClient* pClient) {
     }
 }
 
-
-class MyClientCallback : public NimBLEClientCallbacks {
-    void onConnect(NimBLEClient* pClient) override {
-        Serial.println("Connected!");
-        BLERemoteService* pService = pClient->getService("000018f0-0000-1000-8000-00805f9b34fb");
-        if (pService) {
-            pRemoteCharacteristic = pService->getCharacteristic("00002af1-0000-1000-8000-00805f9b34fb");
-            if (pRemoteCharacteristic) {
-                pRemoteCharacteristic->subscribe(true, notifyCallback);
-                connected = true;
-                xTaskCreate(obdTask, "OBDTask", 16384, NULL, 1, NULL);
-            }
-        }
-    }
-
-    // UPDATE THIS: Add the second parameter 'ble_gap_conn_desc*'
-    void onDisconnect(NimBLEClient* pClient, ble_gap_conn_desc* desc){
-        connected = false;
-        Serial.println("Disconnected!");
-        // Reset pointers/tasks here to prevent the obdTask from trying to access them
-        pRemoteCharacteristic = nullptr;
-    }
-};
-
 void setup_gauge_styles() {
     // Style for normal range
     lv_style_init(&style_orange);
@@ -178,22 +236,32 @@ void setup() {
     Serial.begin(460800);
     trgb.init();
     ui_init();
-    lv_label_set_text(ui_CenterLabel, "connecting...");
+    lv_label_set_text(ui_CenterLabel, "no connect");
     setup_gauge_styles();
+    delay(500); // Give some time for the UI to initialize before starting BLE
+    Serial.println("UI Initialized, starting BLE...");
+
+    NimBLEDevice::deinit(true); 
+    delay(500);
 
     NimBLEDevice::init("ESP32_Client");
-    pClient = NimBLEDevice::createClient();
-
-    // Define a class for callbacks or just use a helper
-    static MyClientCallback clientCB; // You need to define this class
-    pClient->setClientCallbacks(&clientCB);
-
-    // Initiate connection (Non-blocking)
-    if (!pClient->connect(obdAddress)) {
-        Serial.println("Failed to initiate connection");
+    
+    Serial.println(">>> [SETUP] Scanning for devices...");
+    NimBLEScan* pScan = NimBLEDevice::getScan();
+    pScan->setActiveScan(true);
+    
+    // START the scan and wait for it to finish
+    pScan->start(10, false); 
+    
+    // Access the results directly from the scanner object
+    NimBLEScanResults results = pScan->getResults();
+    
+    Serial.printf(">>> [SETUP] Scan finished. Found %d devices.\n", results.getCount());
+    for(int i = 0; i < results.getCount(); i++) {
+        // Use '->' because getDevice returns a pointer
+        Serial.printf("Device %d: %s\n", i, results.getDevice(i)->getAddress().toString().c_str());
     }
 }
-
 void loop() {
     lv_timer_handler();
 
@@ -226,3 +294,5 @@ void loop() {
 
 //lv_refr_now(NULL); 
 //delay(16.6);
+
+*/
