@@ -1,42 +1,39 @@
 #include <Arduino.h>
-#include "NimBLEDevice.h"
+#include <NimBLEDevice.h>
+
+int scanTime = 5 * 1000; // In milliseconds
+NimBLEScan* pBLEScan;
+
+class ScanCallbacks : public NimBLEScanCallbacks {
+    void onDiscovered(const NimBLEAdvertisedDevice* advertisedDevice) override {
+        //Serial.printf("Discovered Advertised Device: %s \n", advertisedDevice->toString().c_str());
+    }
+
+    void onResult(const NimBLEAdvertisedDevice* advertisedDevice) override {
+        Serial.printf("Advertised Device Result: %s \n", advertisedDevice->toString().c_str());
+    }
+
+    void onScanEnd(const NimBLEScanResults& results, int reason) override {
+        Serial.print("Scan Ended; restarting active scan...\n");
+        // Restart the scan without toggling active state
+        pBLEScan->start(scanTime);
+    }
+} scanCallbacks;
 
 void setup() {
     Serial.begin(460800);
-    delay(2000); // Important: Wait for Serial to stabilize
+    Serial.println("Starting Active Scanner...");
 
-    Serial.println(">>> [DEBUG] Starting BLE Initialization...");
+    NimBLEDevice::init("active-only-scan");
+    pBLEScan = NimBLEDevice::getScan();
+    pBLEScan->setScanCallbacks(&scanCallbacks);
     
-    // 1. Ensure any previous state is wiped
-    NimBLEDevice::deinit(true);
+    // Explicitly set to true for active scanning
+    pBLEScan->setActiveScan(true); 
     
-    // 2. Explicitly initialize
-    if (!NimBLEDevice::init("ESP32_Scanner")) {
-        Serial.println(">>> [ERROR] BLE Initialization failed!");
-        return;
-    }
-
-    // 3. Set the radio power explicitly
-    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
-
-    Serial.println(">>> [DEBUG] Starting 10s scan...");
-    NimBLEScan* pScan = NimBLEDevice::getScan();
-    pScan->setActiveScan(true);
-    pScan->setInterval(100);
-    pScan->setWindow(99);
-    
-    // 4. Start the scan and capture the boolean success/fail
-    bool scanStarted = pScan->start(10, false);
-    
-    if (scanStarted) {
-        NimBLEScanResults results = pScan->getResults();
-        Serial.printf(">>> [DEBUG] Scan finished. Found %d devices.\n", results.getCount());
-        for(int i = 0; i < results.getCount(); i++) {
-            Serial.printf("Device %d: %s\n", i, results.getDevice(i)->getAddress().toString().c_str());
-        }
-    } else {
-        Serial.println(">>> [ERROR] Scan failed to start.");
-    }
+    pBLEScan->setInterval(100);
+    pBLEScan->setWindow(100);
+    pBLEScan->start(scanTime);
 }
 
 void loop() {}
