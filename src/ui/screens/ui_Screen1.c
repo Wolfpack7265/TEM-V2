@@ -8,10 +8,13 @@
 lv_obj_t * ui_Screen1 = NULL;
 lv_obj_t * ui_Container1 = NULL;
 lv_obj_t * ui_MainGaugeEmpty = NULL;
-lv_obj_t * ui_CenterLabel = NULL;
+lv_obj_t * ui_Center_Label = NULL;
 lv_obj_t * ui_SecondaryLabel = NULL;
 lv_obj_t * ui_Secondary_Gauge = NULL;
 lv_obj_t * ui_Main_Gauge = NULL;
+lv_obj_t * ui_Main_Gauge_Orange = NULL;
+lv_obj_t * ui_Main_Gauge_Red = NULL;
+lv_obj_t * ui_Main_Gauge_Negative = NULL;
 // event funtions
 
 // build funtions
@@ -36,15 +39,15 @@ void ui_Screen1_screen_init(void)
     lv_obj_add_flag(ui_MainGaugeEmpty, LV_OBJ_FLAG_ADV_HITTEST);     /// Flags
     lv_obj_clear_flag(ui_MainGaugeEmpty, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
-    ui_CenterLabel = lv_label_create(ui_Screen1);
-    lv_obj_set_width(ui_CenterLabel, 325);
-    lv_obj_set_height(ui_CenterLabel, 50);
-    lv_obj_set_align(ui_CenterLabel, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_CenterLabel, "4\n");
-    lv_obj_set_style_text_color(ui_CenterLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_CenterLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_align(ui_CenterLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_CenterLabel, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_Center_Label = lv_label_create(ui_Screen1);
+    lv_obj_set_width(ui_Center_Label, 325);
+    lv_obj_set_height(ui_Center_Label, 50);
+    lv_obj_set_align(ui_Center_Label, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_Center_Label, "4\n");
+    lv_obj_set_style_text_color(ui_Center_Label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_Center_Label, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_Center_Label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Center_Label, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_SecondaryLabel = lv_label_create(ui_Screen1);
     lv_obj_set_width(ui_SecondaryLabel, LV_SIZE_CONTENT);   /// 1
@@ -81,20 +84,80 @@ void ui_Screen1_screen_init(void)
     lv_obj_set_height(ui_Main_Gauge, 460);
     lv_obj_set_align(ui_Main_Gauge, LV_ALIGN_CENTER);
     lv_arc_set_value(ui_Main_Gauge, 100);
-    lv_arc_set_bg_angles(ui_Main_Gauge, 135, 45);
+    lv_arc_set_bg_angles(ui_Main_Gauge, 180, 45);
     lv_obj_set_style_arc_color(ui_Main_Gauge, lv_color_hex(0xD9D9D9), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_opa(ui_Main_Gauge, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_rounded(ui_Main_Gauge, false, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_set_style_arc_color(ui_Main_Gauge, lv_color_hex(0xD9D9D9), LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_opa(ui_Main_Gauge, 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_Main_Gauge, 45, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_width(ui_Main_Gauge, 44, LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_rounded(ui_Main_Gauge, false, LV_PART_INDICATOR | LV_STATE_DEFAULT);
 
     lv_obj_set_style_outline_color(ui_Main_Gauge, lv_color_hex(0x000000), LV_PART_KNOB | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_opa(ui_Main_Gauge, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
     lv_obj_set_style_blend_mode(ui_Main_Gauge, LV_BLEND_MODE_NORMAL, LV_PART_KNOB | LV_STATE_DEFAULT);
     lv_obj_set_style_opa(ui_Main_Gauge, 0, LV_PART_KNOB | LV_STATE_DEFAULT);
+
+    ui_Main_Gauge_Orange = lv_arc_create(ui_Screen1);
+    lv_obj_set_width(ui_Main_Gauge_Orange, 460);
+    lv_obj_set_height(ui_Main_Gauge_Orange, 460);
+    lv_obj_set_align(ui_Main_Gauge_Orange, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_Main_Gauge_Orange, LV_OBJ_FLAG_HIDDEN);     /// Flags
+    lv_arc_set_value(ui_Main_Gauge_Orange, 100);
+    lv_arc_set_bg_angles(ui_Main_Gauge_Orange, -57, -17);
+    lv_obj_set_style_arc_color(ui_Main_Gauge_Orange, lv_color_hex(0xD9D9D9), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_opa(ui_Main_Gauge_Orange, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_rounded(ui_Main_Gauge_Orange, false, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_arc_color(ui_Main_Gauge_Orange, lv_color_hex(0xFF8800), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_opa(ui_Main_Gauge_Orange, 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_width(ui_Main_Gauge_Orange, 44, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_rounded(ui_Main_Gauge_Orange, false, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_outline_color(ui_Main_Gauge_Orange, lv_color_hex(0x000000), LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(ui_Main_Gauge_Orange, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_blend_mode(ui_Main_Gauge_Orange, LV_BLEND_MODE_NORMAL, LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_opa(ui_Main_Gauge_Orange, 0, LV_PART_KNOB | LV_STATE_DEFAULT);
+
+    ui_Main_Gauge_Red = lv_arc_create(ui_Screen1);
+    lv_obj_set_width(ui_Main_Gauge_Red, 460);
+    lv_obj_set_height(ui_Main_Gauge_Red, 460);
+    lv_obj_set_align(ui_Main_Gauge_Red, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_Main_Gauge_Red, LV_OBJ_FLAG_HIDDEN);     /// Flags
+    lv_arc_set_value(ui_Main_Gauge_Red, 100);
+    lv_arc_set_bg_angles(ui_Main_Gauge_Red, -17, 45);
+    lv_obj_set_style_arc_color(ui_Main_Gauge_Red, lv_color_hex(0xD9D9D9), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_opa(ui_Main_Gauge_Red, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_rounded(ui_Main_Gauge_Red, false, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_arc_color(ui_Main_Gauge_Red, lv_color_hex(0xFF0000), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_opa(ui_Main_Gauge_Red, 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_width(ui_Main_Gauge_Red, 44, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_rounded(ui_Main_Gauge_Red, false, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_outline_color(ui_Main_Gauge_Red, lv_color_hex(0x000000), LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(ui_Main_Gauge_Red, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_blend_mode(ui_Main_Gauge_Red, LV_BLEND_MODE_NORMAL, LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_opa(ui_Main_Gauge_Red, 0, LV_PART_KNOB | LV_STATE_DEFAULT);
+
+    ui_Main_Gauge_Negative = lv_arc_create(ui_Screen1);
+    lv_obj_set_width(ui_Main_Gauge_Negative, 460);
+    lv_obj_set_height(ui_Main_Gauge_Negative, 460);
+    lv_obj_set_align(ui_Main_Gauge_Negative, LV_ALIGN_CENTER);
+    lv_arc_set_value(ui_Main_Gauge_Negative, 100);
+    lv_arc_set_bg_angles(ui_Main_Gauge_Negative, 135, 179);
+    lv_obj_set_style_arc_rounded(ui_Main_Gauge_Negative, false, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_arc_color(ui_Main_Gauge_Negative, lv_color_hex(0x161D33), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_opa(ui_Main_Gauge_Negative, 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_width(ui_Main_Gauge_Negative, 44, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_rounded(ui_Main_Gauge_Negative, false, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_outline_color(ui_Main_Gauge_Negative, lv_color_hex(0x000000), LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(ui_Main_Gauge_Negative, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_blend_mode(ui_Main_Gauge_Negative, LV_BLEND_MODE_NORMAL, LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_opa(ui_Main_Gauge_Negative, 0, LV_PART_KNOB | LV_STATE_DEFAULT);
 
 }
 
@@ -106,9 +169,12 @@ void ui_Screen1_screen_destroy(void)
     ui_Screen1 = NULL;
     ui_Container1 = NULL;
     ui_MainGaugeEmpty = NULL;
-    ui_CenterLabel = NULL;
+    ui_Center_Label = NULL;
     ui_SecondaryLabel = NULL;
     ui_Secondary_Gauge = NULL;
     ui_Main_Gauge = NULL;
+    ui_Main_Gauge_Orange = NULL;
+    ui_Main_Gauge_Red = NULL;
+    ui_Main_Gauge_Negative = NULL;
 
 }

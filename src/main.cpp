@@ -22,6 +22,12 @@ static lv_style_t style_grey;
 lv_color_t target_color;
 int main_arc;
 int secondary_arc;
+char center_text[12] = "";
+
+static int last_main_arc = 0;
+static int last_secondary_arc = 0;
+static char last_fuel_text[8] = "0%";
+static lv_color_t last_main_color = lv_color_hex(0xD9D9D9);
 
 TRGBSuppport trgb;
 
@@ -176,6 +182,20 @@ const char* pids[] = {"0133", "010B", "012F"}; // Baro, MAP, Fuel
 unsigned long lastActionTime = 0;
 const unsigned long timeout = 500; // 500ms max wait per PID
 
+struct UIUpdateData {
+    int neg_arc;      // For ui_Main_Gauge_Negative (-10 to 0)
+    int pos_arc;      // For ui_Main_Gauge (0 to 12)
+    lv_color_t color; // Color for the boost gauge
+    int secondary_arc;
+    char fuel_text[8];
+
+    UIUpdateData(int n, int p, lv_color_t c, int s, const char* f, const char* g) 
+        : neg_arc(n), pos_arc(p), color(c), secondary_arc(s) { 
+        strncpy(fuel_text, f, sizeof(fuel_text)); 
+        strncpy(center_text, g, sizeof(fuel_text)); 
+    }
+};
+
 void handleOBDStateMachine() {
     switch (currentState) {
         case SENDING:
@@ -194,56 +214,51 @@ void handleOBDStateMachine() {
         case PARSING:
     parseResponse(pids[currentPIDIndex]);
 
-    // 1. Update Ready Flags
+    // Update the "Ready" flags
     if (strcmp(pids[currentPIDIndex], "010B") == 0) map_ready = true;
     if (strcmp(pids[currentPIDIndex], "0133") == 0) baro_ready = true;
 
-    // 2. Default initializations
-    struct UIUpdateData {
-        int main_arc;
-        lv_color_t color;
-        int secondary_arc;
-        char fuel_text[8];
-        UIUpdateData(int m, lv_color_t c, int s, const char* f) 
-            : main_arc(m), color(c), secondary_arc(s) { strncpy(fuel_text, f, sizeof(fuel_text)); }
-    };
+    int neg_arc = 0;
+    int pos_arc = 0;
 
-    int main_arc = 0;
-    lv_color_t color = lv_color_hex(0xD9D9D9);
-    int secondary_arc = 0;
-    char fuel_text[8] = "0%";
-
-    // 3. Logic to calculate values ONLY if both are ready
+    // Use the static variables we defined earlier to keep values persistent
     if (map_ready && baro_ready) {
         float boost = calculateBoost(manifold_abs_pressure, baro_pressure);
-        main_arc = map(constrain((int)boost, -10, 12), -10, 12, 0, 100);
-        Serial.printf("MAP: %.2f kPa | BARO: %.2f kPa | BOOST: %.2f PSI\n", manifold_abs_pressure, baro_pressure, boost);
-        // Color logic can go here
-       // if (boost >= 10.0) color = lv_color_hex(0xFF0000);
-        //else if (boost >= 5.0) color = lv_color_hex(0xFF8800);
-    } 
-
-    if (strcmp(pids[currentPIDIndex], "012F") == 0) {
-        secondary_arc = (int)fuelLevel;
-        snprintf(fuel_text, sizeof(fuel_text), "%d%%", (int)fuelLevel);
+        
+        if (boost < 0) {
+            // Map vacuum: -10 to 0 becomes 0 to 100 on the negative gauge
+            neg_arc = map(constrain((int)boost, -10, 0), -10, 0, 0, 100);
+            pos_arc = 0; // Force positive gauge to 0
+        } else {
+            // Map boost: 0 to 12 becomes 0 to 100 on the positive gauge
+            neg_arc = 100; // Force negative gauge to 100
+            pos_arc = map(constrain((int)boost, 0, 12), 0, 12, 0, 100);
+        }
+        //if (boost >= 10.0) last_main_color = lv_color_hex(0xFF0000);
+        //else if (boost >= 5.0) last_main_color = lv_color_hex(0xFF8800);
+        //else last_main_color = lv_color_hex(0xD9D9D9);
     }
 
-    // 4. Create and Pass to UI (Your existing code)
-    UIUpdateData* data = new UIUpdateData(main_arc, color, secondary_arc, fuel_text);
+    if (strcmp(pids[currentPIDIndex], "012F") == 0) {
+        last_secondary_arc = (int)fuelLevel;
+        snprintf(last_fuel_text, sizeof(last_fuel_text), "%d%%", (int)fuelLevel);
+    }
+
+    // Now instantiate the struct using the global definition
+    UIUpdateData* data = new UIUpdateData(neg_arc, pos_arc, last_main_color, last_secondary_arc, last_fuel_text, center_text);
 
     lv_async_call([](void* arg) {
         UIUpdateData* d = (UIUpdateData*)arg;
-        if (ui_Main_Gauge != NULL) {
+        if (ui_Main_Gauge_Negative) 
+            lv_arc_set_value(ui_Main_Gauge_Negative, d->neg_arc);
+        if (ui_Main_Gauge) {
             lv_obj_set_style_arc_color(ui_Main_Gauge, d->color, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-            lv_arc_set_value(ui_Main_Gauge, d->main_arc);
+            lv_arc_set_value(ui_Main_Gauge, d->pos_arc);
         }
-        if (ui_Secondary_Gauge != NULL) {
-            lv_arc_set_value(ui_Secondary_Gauge, d->secondary_arc);
-        }
-        if (ui_SecondaryLabel != NULL) {
-            lv_label_set_text(ui_SecondaryLabel, d->fuel_text);
-        }
-        delete d;
+        if (ui_Secondary_Gauge) lv_arc_set_value(ui_Secondary_Gauge, d->secondary_arc);
+        if (ui_SecondaryLabel) lv_label_set_text(ui_SecondaryLabel, d->fuel_text);
+        
+        delete d; // Clean up the heap memory
     }, data);
 
     currentPIDIndex = (currentPIDIndex + 1) % 3;
@@ -284,8 +299,8 @@ void updateLabelAsync(const char* newText) {
     char* textCopy = strdup(newText);
     lv_async_call([](void* data) {
         char* text = (char*)data;
-        if (ui_CenterLabel != NULL) {
-            lv_label_set_text(ui_CenterLabel, text);
+        if (ui_Center_Label != NULL) {
+            lv_label_set_text(ui_Center_Label, text);
         }
         free(text);
     }, textCopy);
@@ -343,9 +358,10 @@ void loop() {
         }
     }else if(elmDevice == nullptr) {
             Serial.println("Not Connected.........");
-            lv_label_set_text(ui_CenterLabel, "no connect");
+            lv_label_set_text(ui_Center_Label, "no connect");
             lv_label_set_text(ui_SecondaryLabel, "0%");
             lv_arc_set_value(ui_Main_Gauge, 0);
+            lv_arc_set_value(ui_Main_Gauge_Negative, 0);
             lv_arc_set_value(ui_Secondary_Gauge, 0);
             //disconnected_message = true;
         
