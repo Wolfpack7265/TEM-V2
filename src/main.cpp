@@ -14,9 +14,11 @@ float baro_pressure, manifold_abs_pressure, fuelLevel, boost;
 
 static lv_style_t style_orange;
 static lv_style_t style_red;
+static lv_style_t style_grey;
 
 lv_color_t target_color;
-int arc_value;
+int main_arc;
+int secondary_arc;
 
 TRGBSuppport trgb;
 
@@ -166,7 +168,7 @@ State currentState = SENDING;
 
 // Track which PID we are currently working on
 int currentPIDIndex = 0;
-const char* pids[] = {"0105", "010B", "012F"}; // Coolant, MAP, Fuel
+const char* pids[] = {"0133", "010B", "012F"}; // Baro, MAP, Fuel
 unsigned long lastActionTime = 0;
 const unsigned long timeout = 500; // 500ms max wait per PID
 
@@ -186,39 +188,57 @@ void handleOBDStateMachine() {
             break;
 
         case PARSING:
-            parseResponse(pids[currentPIDIndex]);
+    parseResponse(pids[currentPIDIndex]);
+
+    // 1. Add a constructor to the struct to handle the array initialization
+    struct UIUpdateData {
+        int main_arc;
+        lv_color_t color;
+        int secondary_arc;
+        char fuel_text[8];
+
+        UIUpdateData(int m, lv_color_t c, int s, const char* f) 
+            : main_arc(m), color(c), secondary_arc(s) {
+            strncpy(fuel_text, f, sizeof(fuel_text));
+        }
+    };
     
-             // 1. Calculate the values in the OBD task (the loop)
-            if (strcmp(pids[currentPIDIndex], "010B") == 0 || strcmp(pids[currentPIDIndex], "0133") == 0) {
-                float boost = calculateBoost(manifold_abs_pressure, baro_pressure);
-        
-            // 2. Map and Determine Color here (outside the lambda)
-            int arc_val = map(constrain((int)boost, -10, 12), -10, 12, 0, 100);
-        
-            lv_color_t color; 
-            /*if (boost >= 10.0) color = lv_color_hex(0xFF0000);
-            else if (boost >= 5.0) color = lv_color_hex(0xFF8800);
-            else color = lv_color_hex(0xD9D9D9);*/
+    // 2. Initialize variables
+    int main_arc = 0;
+    lv_color_t color = lv_color_hex(0xD9D9D9);
+    int secondary_arc = 0;
+    char fuel_text[8] = "0%";
 
-            // 3. Create a small struct to pass BOTH values to the UI thread
-            struct UIUpdateData {
-                int arc_val;
-                lv_color_t color;
-            };
-        
-            UIUpdateData* data = new UIUpdateData{arc_val, color};
-
-             // 4. Pass the pointer to the UI thread
-            lv_async_call([](void* arg) {
-                UIUpdateData* d = (UIUpdateData*)arg;
-                if (ui_Main_Gauge != NULL) {
-                    lv_obj_set_style_arc_color(ui_Main_Gauge, d->color, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-                    lv_arc_set_value(ui_Main_Gauge, d->arc_val);
-                    lv_obj_invalidate(ui_Main_Gauge);
-                }
-                delete d; // Clean up memory
-            }, data);
+    // 3. Logic to calculate values (remains the same)
+    if (strcmp(pids[currentPIDIndex], "010B") == 0 || strcmp(pids[currentPIDIndex], "0133") == 0) {
+        float boost = calculateBoost(manifold_abs_pressure, baro_pressure);
+        main_arc = map(constrain((int)boost, -10, 12), -10, 12, 0, 100);
+        //if (boost >= 10.0) color = lv_color_hex(0xFF0000);
+        //else if (boost >= 5.0) color = lv_color_hex(0xFF8800);
+    } 
+    else if (strcmp(pids[currentPIDIndex], "012F") == 0) {
+        secondary_arc = (int)fuelLevel;
+        snprintf(fuel_text, sizeof(fuel_text), "%d%%", (int)fuelLevel);
     }
+
+    // 4. Use the constructor to safely create the data object
+    UIUpdateData* data = new UIUpdateData(main_arc, color, secondary_arc, fuel_text);
+
+    // 5. Pass to UI thread
+    lv_async_call([](void* arg) {
+        UIUpdateData* d = (UIUpdateData*)arg;
+        if (ui_Main_Gauge != NULL) {
+            lv_obj_set_style_arc_color(ui_Main_Gauge, d->color, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+            lv_arc_set_value(ui_Main_Gauge, d->main_arc);
+        }
+        if (ui_Secondary_Gauge != NULL) {
+            lv_arc_set_value(ui_Secondary_Gauge, d->secondary_arc);
+        }
+        if (ui_SecondaryLabel != NULL) {
+            lv_label_set_text(ui_SecondaryLabel, d->fuel_text);
+        }
+        delete d;
+    }, data);
 
     currentPIDIndex = (currentPIDIndex + 1) % 3;
     currentState = SENDING;
@@ -267,6 +287,9 @@ void updateLabelAsync(const char* newText) {
 
 void setup_gauge_styles() {
     // Style for normal range
+    lv_style_init(&style_grey);
+    lv_style_set_arc_color(&style_grey, lv_color_hex(0xD9D9D9));
+
     lv_style_init(&style_orange);
     lv_style_set_arc_color(&style_orange, lv_color_hex(0xFF8800));
 
@@ -294,7 +317,7 @@ void setup() {
     Serial.begin(460800);
     trgb.init();
     ui_init();
-    lv_label_set_text(ui_CenterLabel, "no connect");
+    //lv_label_set_text(ui_CenterLabel, "no connect");
     setup_gauge_styles();
     delay(500); // Give some time for the UI to initialize before starting BLE
     Serial.println("UI Initialized, starting BLE...");
@@ -307,12 +330,16 @@ void setup() {
 }
 
 void loop() {
-    
     // 1. Handle BLE connection state
     if (doConnect) {
         if (connectToELM327() && initializeELM327()) {
             doConnect = false;
         }
+    }else{
+        lv_label_set_text(ui_CenterLabel, "no connect");
+        lv_label_set_text(ui_SecondaryLabel, "0%");
+        lv_arc_set_value(ui_Main_Gauge, 0);
+        lv_arc_set_value(ui_Secondary_Gauge, 0);
     }
 
     // 2. Handle OBD data cycle (This is your State Machine)
