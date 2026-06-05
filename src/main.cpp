@@ -12,6 +12,9 @@
 
 float baro_pressure, manifold_abs_pressure, fuelLevel, boost;
 
+bool map_ready = false;
+bool baro_ready = false;
+
 static lv_style_t style_orange;
 static lv_style_t style_red;
 static lv_style_t style_grey;
@@ -110,6 +113,7 @@ bool initializeELM327() {
     sendOBDCommand("ATAT2"); delay(500);
     sendOBDCommand("ATSTFF"); delay(500);
     sendOBDCommand("ATKW"); delay(500);
+    Serial.println("ELM327 Initialized");
     return true;
 }
 
@@ -190,41 +194,43 @@ void handleOBDStateMachine() {
         case PARSING:
     parseResponse(pids[currentPIDIndex]);
 
-    // 1. Add a constructor to the struct to handle the array initialization
+    // 1. Update Ready Flags
+    if (strcmp(pids[currentPIDIndex], "010B") == 0) map_ready = true;
+    if (strcmp(pids[currentPIDIndex], "0133") == 0) baro_ready = true;
+
+    // 2. Default initializations
     struct UIUpdateData {
         int main_arc;
         lv_color_t color;
         int secondary_arc;
         char fuel_text[8];
-
         UIUpdateData(int m, lv_color_t c, int s, const char* f) 
-            : main_arc(m), color(c), secondary_arc(s) {
-            strncpy(fuel_text, f, sizeof(fuel_text));
-        }
+            : main_arc(m), color(c), secondary_arc(s) { strncpy(fuel_text, f, sizeof(fuel_text)); }
     };
-    
-    // 2. Initialize variables
+
     int main_arc = 0;
     lv_color_t color = lv_color_hex(0xD9D9D9);
     int secondary_arc = 0;
     char fuel_text[8] = "0%";
 
-    // 3. Logic to calculate values (remains the same)
-    if (strcmp(pids[currentPIDIndex], "010B") == 0 || strcmp(pids[currentPIDIndex], "0133") == 0) {
+    // 3. Logic to calculate values ONLY if both are ready
+    if (map_ready && baro_ready) {
         float boost = calculateBoost(manifold_abs_pressure, baro_pressure);
         main_arc = map(constrain((int)boost, -10, 12), -10, 12, 0, 100);
-        //if (boost >= 10.0) color = lv_color_hex(0xFF0000);
+        Serial.printf("MAP: %.2f kPa | BARO: %.2f kPa | BOOST: %.2f PSI\n", manifold_abs_pressure, baro_pressure, boost);
+        // Color logic can go here
+       // if (boost >= 10.0) color = lv_color_hex(0xFF0000);
         //else if (boost >= 5.0) color = lv_color_hex(0xFF8800);
     } 
-    else if (strcmp(pids[currentPIDIndex], "012F") == 0) {
+
+    if (strcmp(pids[currentPIDIndex], "012F") == 0) {
         secondary_arc = (int)fuelLevel;
         snprintf(fuel_text, sizeof(fuel_text), "%d%%", (int)fuelLevel);
     }
 
-    // 4. Use the constructor to safely create the data object
+    // 4. Create and Pass to UI (Your existing code)
     UIUpdateData* data = new UIUpdateData(main_arc, color, secondary_arc, fuel_text);
 
-    // 5. Pass to UI thread
     lv_async_call([](void* arg) {
         UIUpdateData* d = (UIUpdateData*)arg;
         if (ui_Main_Gauge != NULL) {
@@ -335,11 +341,15 @@ void loop() {
         if (connectToELM327() && initializeELM327()) {
             doConnect = false;
         }
-    }else{
-        lv_label_set_text(ui_CenterLabel, "no connect");
-        lv_label_set_text(ui_SecondaryLabel, "0%");
-        lv_arc_set_value(ui_Main_Gauge, 0);
-        lv_arc_set_value(ui_Secondary_Gauge, 0);
+    }else if(elmDevice == nullptr) {
+            Serial.println("Not Connected.........");
+            lv_label_set_text(ui_CenterLabel, "no connect");
+            lv_label_set_text(ui_SecondaryLabel, "0%");
+            lv_arc_set_value(ui_Main_Gauge, 0);
+            lv_arc_set_value(ui_Secondary_Gauge, 0);
+            //disconnected_message = true;
+        
+        
     }
 
     // 2. Handle OBD data cycle (This is your State Machine)
