@@ -1,140 +1,256 @@
 #include <Arduino.h>
-#include <NimBLEDevice.h>
-
-int scanTime = 5 * 1000; // In milliseconds
-NimBLEScan* pBLEScan;
-
-class ScanCallbacks : public NimBLEScanCallbacks {
-    void onDiscovered(const NimBLEAdvertisedDevice* advertisedDevice) override {
-        //Serial.printf("Discovered Advertised Device: %s \n", advertisedDevice->toString().c_str());
-    }
-
-    void onResult(const NimBLEAdvertisedDevice* advertisedDevice) override {
-        Serial.printf("Advertised Device Result: %s \n", advertisedDevice->toString().c_str());
-    }
-
-    void onScanEnd(const NimBLEScanResults& results, int reason) override {
-        Serial.print("Scan Ended; restarting active scan...\n");
-        // Restart the scan without toggling active state
-        pBLEScan->start(scanTime);
-    }
-} scanCallbacks;
-
-void setup() {
-    Serial.begin(460800);
-    Serial.println("Starting Active Scanner...");
-
-    NimBLEDevice::init("active-only-scan");
-    pBLEScan = NimBLEDevice::getScan();
-    pBLEScan->setScanCallbacks(&scanCallbacks);
-    
-    // Explicitly set to true for active scanning
-    pBLEScan->setActiveScan(true); 
-    
-    pBLEScan->setInterval(100);
-    pBLEScan->setWindow(100);
-    pBLEScan->start(scanTime);
-}
-
-void loop() {}
-/*
-#include <Arduino.h>
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEScan.h>
+#include <BLEAdvertisedDevice.h>
 #include <TRGBSuppport.h>
 #include <lvgl.h>
 #include "draw/lv_draw_mask.h"
 #include "ui/ui.h"
 #include "FS.h"
 #include "SD.h"
-#include "ELMduino.h"
-#include "NimBLEDevice.h"
-#include <deque>
 
-ELM327 myELM327;
-TRGBSuppport trgb;
-
-// Global variables needed by the callback
-static bool connected = false;
-static BLERemoteCharacteristic* pRemoteCharacteristic = nullptr;
-
-// Forward declaration of functions used in the callback
-static void notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify);
-void obdTask(void* parameter);
-
-// NOW define the class
-// 1. Define the class only ONCE
-class MyClientCallback : public NimBLEClientCallbacks {
-    void onConnect(NimBLEClient* pClient) override {
-        Serial.println(">>> [CALLBACK] Connected!");
-        if (!pClient->discoverAttributes()) {
-            pClient->disconnect();
-            return;
-        }
-        BLERemoteService* pService = pClient->getService("000018f0-0000-1000-8000-00805f9b34fb");
-        if (pService) {
-            pRemoteCharacteristic = pService->getCharacteristic("00002af1-0000-1000-8000-00805f9b34fb");
-            if (pRemoteCharacteristic) {
-                pRemoteCharacteristic->subscribe(true, notifyCallback);
-                connected = true;
-                xTaskCreate(obdTask, "OBDTask", 16384, NULL, 1, NULL);
-            }
-        }
-    }
-
-    // 2. Updated signature: Removed 'ble_gap_conn_desc*' if the compiler is strict,
-    // or keep it and remove 'override' if it still fails.
-    void onDisconnect(NimBLEClient* pClient) {
-        connected = false;
-        Serial.println(">>> [CALLBACK] Disconnected!");
-        pRemoteCharacteristic = nullptr;
-    }
-};
-// Now declare the static instance
-static MyClientCallback clientCB;
-
-// 3. Continue with other globals
-static NimBLEAddress obdAddress("00:10:cc:4f:36:03", 1); 
-static NimBLEClient* pClient = nullptr;
+float baro_pressure, manifold_abs_pressure, fuelLevel, boost;
 
 static lv_style_t style_orange;
 static lv_style_t style_red;
 
+lv_color_t target_color;
+int arc_value;
 
-static int current_rpm = -1;
+TRGBSuppport trgb;
 
-static BLEAddress *pServerAddress;
 
-// ELMduino needs a Stream interface, so we map it here
-class OBDStream : public Stream {
-public:
-    int available() override { return rxQueue.size(); }
-    
-    int read() override { 
-        if (rxQueue.empty()) return -1;
-        uint8_t c = rxQueue.front(); 
-        rxQueue.pop_front(); 
-        return c; 
-    }
-    
-    int peek() override { 
-        if (rxQueue.empty()) return -1;
-        return rxQueue.front(); 
-    }
-    
-    size_t write(uint8_t c) override { 
-        if(pRemoteCharacteristic) pRemoteCharacteristic->writeValue(&c, 1, false);
-        return 1; 
-    }
-    
-    void flush() override {}
-    
-    void push(uint8_t* data, size_t len) { 
-        for(size_t i=0; i<len; i++) rxQueue.push_back(data[i]); 
-    }
-private:
-    std::deque<uint8_t> rxQueue; 
-} obdStream;
+// ===== Protocol Configuration =====
+#define OBD_PROTOCOL "ATSP6"
+#define PROTOCOL_NAME "ISO 15765-4"
 
-// Helper to update the label safely from any task
+// ===== BLE UUIDs =====
+#define SERVICE_UUID           "0000fff0-0000-1000-8000-00805f9b34fb"
+#define CHARACTERISTIC_UUID_TX "0000fff1-0000-1000-8000-00805f9b34fb"
+#define CHARACTERISTIC_UUID_RX "0000fff2-0000-1000-8000-00805f9b34fb"
+
+// ===== Global Variables =====
+static BLEAdvertisedDevice* elmDevice = nullptr;
+static BLEClient* pClient = nullptr;
+static BLERemoteCharacteristic* pTxCharacteristic = nullptr;
+static BLERemoteCharacteristic* pRxCharacteristic = nullptr;
+static bool deviceConnected = false;
+static bool doConnect = false;
+static String receivedData = "";
+
+// ===== Callbacks =====
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+    void onResult(BLEAdvertisedDevice advertisedDevice) {
+        String deviceName = String(advertisedDevice.getName().c_str());
+        if (deviceName.indexOf("OBD") != -1 || deviceName.indexOf("ELM") != -1) {
+            BLEDevice::getScan()->stop();
+            elmDevice = new BLEAdvertisedDevice(advertisedDevice);
+            doConnect = true;
+        }
+    }
+};
+
+static void notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
+    for (int i = 0; i < length; i++) receivedData += (char)pData[i];
+}
+
+class MyClientCallback : public BLEClientCallbacks {
+    void onConnect(BLEClient* pclient) { deviceConnected = true; }
+    void onDisconnect(BLEClient* pclient) { deviceConnected = false; }
+};
+
+// ===== Core OBD2 Functions =====
+bool connectToELM327() {
+    pClient = BLEDevice::createClient();
+    pClient->setClientCallbacks(new MyClientCallback());
+    if (!pClient->connect(elmDevice)) return false;
+    
+    BLERemoteService* pRemoteService = pClient->getService(SERVICE_UUID);
+    if (!pRemoteService) return false;
+    
+    pTxCharacteristic = pRemoteService->getCharacteristic(CHARACTERISTIC_UUID_TX);
+    pRxCharacteristic = pRemoteService->getCharacteristic(CHARACTERISTIC_UUID_RX);
+    
+    if (pTxCharacteristic && pTxCharacteristic->canNotify()) {
+        pTxCharacteristic->registerForNotify(notifyCallback);
+    }
+    return true;
+}
+
+void sendOBDCommand(String command) {
+    if (!deviceConnected) return;
+    receivedData = "";
+    command += "\r";
+    pRxCharacteristic->writeValue(command.c_str(), command.length());
+}
+
+String waitForResponse(int timeoutMs = 2000) {
+    unsigned long startTime = millis();
+    while (millis() - startTime < timeoutMs) {
+        if (receivedData.indexOf('>') != -1) {
+            String response = receivedData;
+            receivedData = "";
+            return response;
+        }
+        delay(10);
+    }
+    return "";
+}
+
+bool initializeELM327() {
+    sendOBDCommand("ATZ"); delay(2500);
+    sendOBDCommand("ATE0"); delay(500);
+    sendOBDCommand("ATS0"); delay(500);
+    sendOBDCommand("ATL0"); delay(500);
+    sendOBDCommand(OBD_PROTOCOL); delay(2000);
+    sendOBDCommand("ATH0"); delay(500);
+    sendOBDCommand("ATAT2"); delay(500);
+    sendOBDCommand("ATSTFF"); delay(500);
+    sendOBDCommand("ATKW"); delay(500);
+    return true;
+}
+
+
+void parseResponse(const char* pid) {
+    // Ensure we have data
+    if (receivedData.length() < 6) return;
+
+    // Remove noise from the raw response string
+    receivedData.replace(" ", "");
+    receivedData.replace("\r", "");
+    receivedData.replace("\n", "");
+    receivedData.replace(">", "");
+
+    // Find the position of the PID echo
+    int pidPos = receivedData.indexOf("41"); // 41 is the standard Mode 01 response
+    if (pidPos == -1) return;
+
+    // Extract the hex data bytes (assuming standard 2-byte data)
+    // The PID is 2 chars, and the data follows immediately
+    String hexData = receivedData.substring(pidPos + 4, pidPos + 6);
+    int rawValue = (int)strtol(hexData.c_str(), NULL, 16);
+
+    // Apply specific formulas based on which PID we requested
+    if (strcmp(pid, "010B") == 0) {
+        // MAP: A (kPa)
+        manifold_abs_pressure = (float)rawValue; 
+    } 
+    else if (strcmp(pid, "012F") == 0) {
+        // Fuel Level: (100 / 255) * A (%)
+        fuelLevel = (float)rawValue * (100.0 / 255.0);
+    }
+    else if (strcmp(pid, "0133") == 0) {
+        // Barometric Pressure: A (kPa)
+        baro_pressure = (float)rawValue;
+    }
+
+    // Clear buffer for next request
+    receivedData = "";
+}
+
+float calculateBoost(float mapKpa, float baroKpa) {
+    // 1. Calculate the difference (Gauge Pressure in kPa)
+    float gaugePressureKpa = mapKpa - baroKpa;
+    
+    // 2. Convert kPa to PSI (1 kPa ≈ 0.1450377 PSI)
+    float boostPsi = gaugePressureKpa * 0.1450377;
+    
+    // 3. Round to 2 decimal places
+    // Multiply by 100, round to nearest integer, divide by 100.0
+    return roundf(boostPsi * 100.0f) / 100.0f;
+}
+
+enum State { SENDING, WAITING, PARSING };
+State currentState = SENDING;
+
+// Track which PID we are currently working on
+int currentPIDIndex = 0;
+const char* pids[] = {"0105", "010B", "012F"}; // Coolant, MAP, Fuel
+unsigned long lastActionTime = 0;
+const unsigned long timeout = 500; // 500ms max wait per PID
+
+void handleOBDStateMachine() {
+    switch (currentState) {
+        case SENDING:
+            sendOBDCommand(pids[currentPIDIndex]);
+            lastActionTime = millis();
+            currentState = WAITING;
+            break;
+
+        case WAITING:
+            // Check if we got a response or if we timed out
+            if (receivedData.indexOf('>') != -1 || (millis() - lastActionTime > timeout)) {
+                currentState = PARSING;
+            }
+            break;
+
+        case PARSING:
+            parseResponse(pids[currentPIDIndex]);
+    
+             // 1. Calculate the values in the OBD task (the loop)
+            if (strcmp(pids[currentPIDIndex], "010B") == 0 || strcmp(pids[currentPIDIndex], "0133") == 0) {
+                float boost = calculateBoost(manifold_abs_pressure, baro_pressure);
+        
+            // 2. Map and Determine Color here (outside the lambda)
+            int arc_val = map(constrain((int)boost, -10, 12), -10, 12, 0, 100);
+        
+            lv_color_t color; 
+            /*if (boost >= 10.0) color = lv_color_hex(0xFF0000);
+            else if (boost >= 5.0) color = lv_color_hex(0xFF8800);
+            else color = lv_color_hex(0xD9D9D9);*/
+
+            // 3. Create a small struct to pass BOTH values to the UI thread
+            struct UIUpdateData {
+                int arc_val;
+                lv_color_t color;
+            };
+        
+            UIUpdateData* data = new UIUpdateData{arc_val, color};
+
+             // 4. Pass the pointer to the UI thread
+            lv_async_call([](void* arg) {
+                UIUpdateData* d = (UIUpdateData*)arg;
+                if (ui_Main_Gauge != NULL) {
+                    lv_obj_set_style_arc_color(ui_Main_Gauge, d->color, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+                    lv_arc_set_value(ui_Main_Gauge, d->arc_val);
+                    lv_obj_invalidate(ui_Main_Gauge);
+                }
+                delete d; // Clean up memory
+            }, data);
+    }
+
+    currentPIDIndex = (currentPIDIndex + 1) % 3;
+    currentState = SENDING;
+    break;
+    }
+}
+
+// Logic for Colors
+            /*if (current_rpm >= 6000) {
+                target_color = lv_color_hex(0xFF0000); // Red
+            } else if (current_rpm >= 5000) {
+                target_color = lv_color_hex(0xFF8800); // Orange
+            } else {
+                target_color = lv_color_hex(0xD9D9D9); // Normal
+            }*/
+
+/*float readCoolantTemperature() {
+    sendOBDCommand("0105");
+    delay(800);
+    String response = waitForResponse(4000);
+    
+    response.replace(" ", ""); response.replace("\r", ""); response.replace("\n", ""); response.replace(">", "");
+    int pidPos = response.indexOf("4105");
+    if (pidPos == -1) return -999.0;
+    
+    int tempValue = (int)strtol(response.substring(pidPos + 4, pidPos + 6).c_str(), NULL, 16);
+    return tempValue - 40.0;
+}*/
+
+/////////////////////////////////////////////////////////////////////////////////////////
+//                  LVGL functions
+///////////////////////////////////////////////////////////////////////////////////////////////
 void updateLabelAsync(const char* newText) {
     // THIS WILL TELL US EXACTLY WHAT IS HAPPENING
     Serial.printf("DEBUG: UI Update Request Received. Text: '%s'\n", newText);
@@ -147,67 +263,6 @@ void updateLabelAsync(const char* newText) {
         }
         free(text);
     }, textCopy);
-}
-
-void obdTask(void* parameter) {
-    bool initialized = false;
-    updateLabelAsync("no connect");
-
-    while (true) {
-        if (connected && pRemoteCharacteristic != nullptr) {
-            if (!initialized) {
-                if (myELM327.begin(obdStream, false, 2000)) {
-                    myELM327.sendCommand("ATE0");
-                    myELM327.sendCommand("ATL0");
-                    initialized = true;
-                    while(obdStream.available()) obdStream.read();
-                }
-            } else {
-                // Only poll if initialized
-                float rpm = myELM327.rpm();
-                if (myELM327.get_response() == ELM_SUCCESS) {
-                    if (rpm > 0) {
-                        current_rpm = (int)rpm; // Update global variable
-                        char buffer[16];
-                        snprintf(buffer, sizeof(buffer), "%d", current_rpm);
-                        updateLabelAsync(buffer);
-                    }
-                } else if (myELM327.get_response() == ELM_TIMEOUT) {
-                    initialized = false;
-                    current_rpm = -1; // Reset to "no connect" state
-                    updateLabelAsync("no connect");
-                }   else {
-                    initialized = false;
-                    current_rpm = -1; // Reset to "no connect" state
-                    updateLabelAsync("no connect");
-}
-            }
-        }
-        vTaskDelay(200 / portTICK_PERIOD_MS);
-    }
-}
-
-
-static void notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
-    obdStream.push(pData, length);
-}
-
-void onConnect(NimBLEClient* pClient) {
-    // 1. You MUST find the characteristic first
-    BLERemoteService* pService = pClient->getService("000018f0-0000-1000-8000-00805f9b34fb");
-    if (pService) {
-        pRemoteCharacteristic = pService->getCharacteristic("00002af1-0000-1000-8000-00805f9b34fb");
-        
-        if (pRemoteCharacteristic) {
-            // 2. ONLY subscribe if you found the characteristic!
-            pRemoteCharacteristic->subscribe(true, notifyCallback);
-            
-            // 3. ONLY start the task once subscription is successful
-            connected = true;
-            xTaskCreate(obdTask, "OBDTask", 16384, NULL, 1, NULL);
-            Serial.println("OBD Task started successfully.");
-        }
-    }
 }
 
 void setup_gauge_styles() {
@@ -229,6 +284,12 @@ void update_gauge_color(int value) {
     }
 }
 
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
+//                  Setup and Loop
+///////////////////////////////////////////////////////////////////////////////////////////////
+
 void setup() {
     Serial.begin(460800);
     trgb.init();
@@ -238,58 +299,33 @@ void setup() {
     delay(500); // Give some time for the UI to initialize before starting BLE
     Serial.println("UI Initialized, starting BLE...");
 
-    NimBLEDevice::deinit(true); 
-    delay(500);
-
-    NimBLEDevice::init("ESP32_Client");
-    
-    Serial.println(">>> [SETUP] Scanning for devices...");
-    NimBLEScan* pScan = NimBLEDevice::getScan();
-    pScan->setActiveScan(true);
-    
-    // START the scan and wait for it to finish
-    pScan->start(10, false); 
-    
-    // Access the results directly from the scanner object
-    NimBLEScanResults results = pScan->getResults();
-    
-    Serial.printf(">>> [SETUP] Scan finished. Found %d devices.\n", results.getCount());
-    for(int i = 0; i < results.getCount(); i++) {
-        // Use '->' because getDevice returns a pointer
-        Serial.printf("Device %d: %s\n", i, results.getDevice(i)->getAddress().toString().c_str());
-    }
+    BLEDevice::init("ESP32_OBD_Reader");
+    BLEScan* pBLEScan = BLEDevice::getScan();
+    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+    pBLEScan->setActiveScan(true);
+    pBLEScan->start(10, false);
 }
+
 void loop() {
-    lv_timer_handler();
-
-    lv_color_t target_color;
-    int arc_value;
-
-    if (current_rpm == -1) {
-        arc_value = 0;
-    } else {
-        arc_value = map(constrain(current_rpm, 0, 6500), 0, 6500, 0, 100);
-        
-        // Logic for Colors
-        if (current_rpm >= 6000) {
-            target_color = lv_color_hex(0xFF0000); // Red
-        } else if (current_rpm >= 5000) {
-            target_color = lv_color_hex(0xFF8800); // Orange
-        } else {
-            target_color = lv_color_hex(0xD9D9D9); // Normal
+    
+    // 1. Handle BLE connection state
+    if (doConnect) {
+        if (connectToELM327() && initializeELM327()) {
+            doConnect = false;
         }
     }
 
-    // Apply color and value
-    lv_obj_set_style_arc_color(ui_Main_Gauge, target_color, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_arc_set_value(ui_Main_Gauge, arc_value);
-    lv_obj_invalidate(ui_Main_Gauge);
+    // 2. Handle OBD data cycle (This is your State Machine)
+    if (deviceConnected) {
+        handleOBDStateMachine();
+    }
 
+    // 3. Handle LVGL UI tasks
+    lv_timer_handler();
+    
     lv_refr_now(NULL); 
-    delay(16.6);
+    delay(1);
 }
+    //lv_refr_now(NULL); 
+   // delay(16.6);
 
-//lv_refr_now(NULL); 
-//delay(16.6);
-
-*/
