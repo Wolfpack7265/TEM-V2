@@ -17,12 +17,13 @@ extern lv_obj_t * ui_Screen1;
 extern lv_obj_t * ui_Container1;
 extern lv_obj_t * ui_MainGaugeEmpty;
 extern lv_obj_t * ui_Center_Label;
-extern lv_obj_t * ui_SecondaryLabel;
-extern lv_obj_t * ui_Secondary_Gauge;
 extern lv_obj_t * ui_Main_Gauge;
 extern lv_obj_t * ui_Main_Gauge_Orange;
 extern lv_obj_t * ui_Main_Gauge_Red;
 extern lv_obj_t * ui_Main_Gauge_Negative;
+extern lv_obj_t * ui_Tick_Marks;
+extern lv_obj_t * ui_SecondaryLabel;
+extern lv_obj_t * ui_Secondary_Gauge;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

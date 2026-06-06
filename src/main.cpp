@@ -180,7 +180,7 @@ State currentState = SENDING;
 int currentPIDIndex = 0;
 const char* pids[] = {"0133", "010B", "012F"}; // Baro, MAP, Fuel
 unsigned long lastActionTime = 0;
-const unsigned long timeout = 500; // 500ms max wait per PID
+const unsigned long timeout = 200; // 500ms max wait per PID
 
 struct UIUpdateData {
     int neg_arc;      // For ui_Main_Gauge_Negative (-10 to 0)
@@ -251,7 +251,8 @@ void handleOBDStateMachine() {
         UIUpdateData* d = (UIUpdateData*)arg;
         if (ui_Main_Gauge_Negative) 
             lv_arc_set_value(ui_Main_Gauge_Negative, d->neg_arc);
-        if (ui_Main_Gauge) {
+        
+            if (ui_Main_Gauge) {
             lv_obj_set_style_arc_color(ui_Main_Gauge, d->color, LV_PART_INDICATOR | LV_STATE_DEFAULT);
             lv_arc_set_value(ui_Main_Gauge, d->pos_arc);
         }
@@ -338,6 +339,7 @@ void setup() {
     Serial.begin(460800);
     trgb.init();
     ui_init();
+    
     //lv_label_set_text(ui_CenterLabel, "no connect");
     setup_gauge_styles();
     delay(500); // Give some time for the UI to initialize before starting BLE
@@ -376,8 +378,8 @@ void loop() {
     // 3. Handle LVGL UI tasks
     lv_timer_handler();
     
-    lv_refr_now(NULL); 
-    delay(1);
+    //lv_refr_now(NULL); 
+    //delay(1);
 }
     //lv_refr_now(NULL); 
    // delay(16.6);

@@ -3,3 +3,4 @@ ui.c
 components/ui_comp_hook.c
 ui_helpers.c
 images/ui_img_screen_bg_png.c
+images/ui_img_tick_marks_png.c
