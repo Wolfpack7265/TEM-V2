@@ -12,6 +12,8 @@
 
 float baro_pressure, manifold_abs_pressure, fuelLevel, boost;
 
+int max_boost = 12;
+
 bool map_ready = false;
 bool baro_ready = false;
 
@@ -232,7 +234,7 @@ void handleOBDStateMachine() {
         } else {
             // Map boost: 0 to 12 becomes 0 to 100 on the positive gauge
             neg_arc = 100; // Force negative gauge to 100
-            pos_arc = map(constrain((int)boost, 0, 12), 0, 12, 0, 100);
+            pos_arc = map(constrain((int)boost, 0, max_boost), 0, max_boost, 0, 100);
         }
         //if (boost >= 10.0) last_main_color = lv_color_hex(0xFF0000);
         //else if (boost >= 5.0) last_main_color = lv_color_hex(0xFF8800);
@@ -267,28 +269,6 @@ void handleOBDStateMachine() {
     break;
     }
 }
-
-// Logic for Colors
-            /*if (current_rpm >= 6000) {
-                target_color = lv_color_hex(0xFF0000); // Red
-            } else if (current_rpm >= 5000) {
-                target_color = lv_color_hex(0xFF8800); // Orange
-            } else {
-                target_color = lv_color_hex(0xD9D9D9); // Normal
-            }*/
-
-/*float readCoolantTemperature() {
-    sendOBDCommand("0105");
-    delay(800);
-    String response = waitForResponse(4000);
-    
-    response.replace(" ", ""); response.replace("\r", ""); response.replace("\n", ""); response.replace(">", "");
-    int pidPos = response.indexOf("4105");
-    if (pidPos == -1) return -999.0;
-    
-    int tempValue = (int)strtol(response.substring(pidPos + 4, pidPos + 6).c_str(), NULL, 16);
-    return tempValue - 40.0;
-}*/
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //                  LVGL functions
@@ -329,8 +309,6 @@ void update_gauge_color(int value) {
     }
 }
 
-
-
 /////////////////////////////////////////////////////////////////////////////////////////
 //                  Setup and Loop
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -339,8 +317,6 @@ void setup() {
     Serial.begin(460800);
     trgb.init();
     ui_init();
-    
-    //lv_label_set_text(ui_CenterLabel, "no connect");
     setup_gauge_styles();
     delay(500); // Give some time for the UI to initialize before starting BLE
     Serial.println("UI Initialized, starting BLE...");
@@ -359,7 +335,7 @@ void loop() {
             doConnect = false;
         }
     }else if(elmDevice == nullptr) {
-            Serial.println("Not Connected.........");
+            //Serial.println("Not Connected.........");
             lv_label_set_text(ui_Center_Label, "no connect");
             lv_label_set_text(ui_SecondaryLabel, "0%");
             lv_arc_set_value(ui_Main_Gauge, 0);
@@ -367,14 +343,13 @@ void loop() {
             lv_arc_set_value(ui_Secondary_Gauge, 0);
             //disconnected_message = true;
         
-        
     }
 
     // 2. Handle OBD data cycle (This is your State Machine)
     if (deviceConnected) {
         handleOBDStateMachine();
     }
-
+    
     // 3. Handle LVGL UI tasks
     lv_timer_handler();
     

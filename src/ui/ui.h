@@ -29,8 +29,8 @@ extern lv_anim_t * GaugeSweep_Animation(lv_obj_t * TargetObject, int delay);
 extern lv_obj_t * ui____initial_actions0;
 
 // IMAGES AND IMAGE SETS
-LV_IMG_DECLARE(ui_img_screen_bg_png);    // assets/Screen bg.png
-LV_IMG_DECLARE(ui_img_tick_marks_png);    // assets/Tick Marks.png
+LV_IMG_DECLARE(ui_img_bg_screen_24_ticks_png);    // assets/bg screen 24 ticks.png
+LV_IMG_DECLARE(ui_img_24_ticks_png);    // assets/24 ticks.png
 
 // UI INIT
 void ui_init(void);

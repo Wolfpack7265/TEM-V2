@@ -33,7 +33,7 @@ void ui_Screen1_screen_init(void)
     lv_obj_clear_flag(ui_Container1, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
     ui_MainGaugeEmpty = lv_img_create(ui_Container1);
-    lv_img_set_src(ui_MainGaugeEmpty, &ui_img_screen_bg_png);
+    lv_img_set_src(ui_MainGaugeEmpty, &ui_img_bg_screen_24_ticks_png);
     lv_obj_set_width(ui_MainGaugeEmpty, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_MainGaugeEmpty, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_MainGaugeEmpty, LV_ALIGN_CENTER);
@@ -133,7 +133,7 @@ void ui_Screen1_screen_init(void)
     lv_obj_set_style_opa(ui_Main_Gauge_Negative, 0, LV_PART_KNOB | LV_STATE_DEFAULT);
 
     ui_Tick_Marks = lv_img_create(ui_Screen1);
-    lv_img_set_src(ui_Tick_Marks, &ui_img_tick_marks_png);
+    lv_img_set_src(ui_Tick_Marks, &ui_img_24_ticks_png);
     lv_obj_set_width(ui_Tick_Marks, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_Tick_Marks, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_Tick_Marks, LV_ALIGN_CENTER);
@@ -146,14 +146,14 @@ void ui_Screen1_screen_init(void)
     lv_obj_set_x(ui_SecondaryLabel, 0);
     lv_obj_set_y(ui_SecondaryLabel, 160);
     lv_obj_set_align(ui_SecondaryLabel, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_SecondaryLabel, "50%");
+    lv_label_set_text(ui_SecondaryLabel, "0%");
     lv_obj_set_style_text_font(ui_SecondaryLabel, &lv_font_montserrat_36, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Secondary_Gauge = lv_arc_create(ui_Screen1);
     lv_obj_set_width(ui_Secondary_Gauge, 410);
     lv_obj_set_height(ui_Secondary_Gauge, 410);
     lv_obj_set_align(ui_Secondary_Gauge, LV_ALIGN_CENTER);
-    lv_arc_set_value(ui_Secondary_Gauge, 50);
+    lv_arc_set_value(ui_Secondary_Gauge, 0);
     lv_arc_set_bg_angles(ui_Secondary_Gauge, 55, 125);
     lv_arc_set_mode(ui_Secondary_Gauge, LV_ARC_MODE_REVERSE);
     lv_obj_set_style_arc_color(ui_Secondary_Gauge, lv_color_hex(0x0F1524), LV_PART_MAIN | LV_STATE_DEFAULT);
