@@ -259,7 +259,7 @@ void handleOBDStateMachine() {
             lv_arc_set_value(ui_Main_Gauge, d->pos_arc);
         }
         if (ui_Secondary_Gauge) lv_arc_set_value(ui_Secondary_Gauge, d->secondary_arc);
-        if (ui_SecondaryLabel) lv_label_set_text(ui_SecondaryLabel, d->fuel_text);
+        if (ui_Secondary_Label) lv_label_set_text(ui_Secondary_Label, d->fuel_text);
         
         delete d; // Clean up the heap memory
     }, data);
@@ -336,8 +336,8 @@ void loop() {
         }
     }else if(elmDevice == nullptr) {
             //Serial.println("Not Connected.........");
-            lv_label_set_text(ui_Center_Label, "no connect");
-            lv_label_set_text(ui_SecondaryLabel, "0%");
+            lv_label_set_text(ui_Center_Label, "N/A");
+            lv_label_set_text(ui_Secondary_Label, "0%");
             lv_arc_set_value(ui_Main_Gauge, 0);
             lv_arc_set_value(ui_Main_Gauge_Negative, 0);
             lv_arc_set_value(ui_Secondary_Gauge, 0);
@@ -347,14 +347,15 @@ void loop() {
 
     // 2. Handle OBD data cycle (This is your State Machine)
     if (deviceConnected) {
+        lv_label_set_text(ui_Center_Label, "");
         handleOBDStateMachine();
     }
     
     // 3. Handle LVGL UI tasks
     lv_timer_handler();
     
-    //lv_refr_now(NULL); 
-    //delay(1);
+    lv_refr_now(NULL); 
+    delay(1);
 }
     //lv_refr_now(NULL); 
    // delay(16.6);

@@ -22,8 +22,13 @@ extern lv_obj_t * ui_Main_Gauge_Orange;
 extern lv_obj_t * ui_Main_Gauge_Red;
 extern lv_obj_t * ui_Main_Gauge_Negative;
 extern lv_obj_t * ui_Tick_Marks;
-extern lv_obj_t * ui_SecondaryLabel;
+extern lv_obj_t * ui_Secondary_Label;
 extern lv_obj_t * ui_Secondary_Gauge;
+extern lv_obj_t * ui_Negative_Label;
+extern lv_obj_t * ui_Zero_Label;
+extern lv_obj_t * ui_Max_Label;
+extern lv_obj_t * ui_Red_Label;
+extern lv_obj_t * ui_Function_Label;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus
