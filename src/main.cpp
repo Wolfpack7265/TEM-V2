@@ -12,7 +12,11 @@
 
 float baro_pressure, manifold_abs_pressure, fuelLevel, boost;
 
-int max_boost = 12;
+int max_main_value = 12;
+int min_main_value = -10;
+int segments = 15;
+int increment_per_segment = max_main_value/segments;
+
 
 bool map_ready = false;
 bool baro_ready = false;
@@ -228,17 +232,27 @@ void handleOBDStateMachine() {
         float boost = calculateBoost(manifold_abs_pressure, baro_pressure);
         
         if (boost < 0) {
-            // Map vacuum: -10 to 0 becomes 0 to 100 on the negative gauge
-            neg_arc = map(constrain((int)boost, -10, 0), -10, 0, 0, 100);
-            pos_arc = 0; // Force positive gauge to 0
+            // --- Negative Gauge: -10 to 0 (Target: 3 segments) ---
+            // 1. Convert to a positive vacuum value (e.g., -5 becomes 5)
+            //float segment_index = (constrain(boost, -10.0, 0.0) / 10.0) * 3.0;
+            float vacuum_val = abs(constrain(boost, -10.0, 0.0));
+            // 2. Map vacuum to 0.0 - 3.0 range
+            float segment_index = ((10.0 - vacuum_val) / 10.0) * 3.0;
+            // 2. Snap to nearest segment (0, 1, 2, or 3)
+            int snapped_segment = round(segment_index);
+            // 3. Scale to 0-100% (33.33% per segment)
+            neg_arc = (int)(snapped_segment * 33.33);
+            pos_arc = 0;
         } else {
-            // Map boost: 0 to 12 becomes 0 to 100 on the positive gauge
-            neg_arc = 100; // Force negative gauge to 100
-            pos_arc = map(constrain((int)boost, 0, max_boost), 0, max_boost, 0, 100);
+            // --- Positive Gauge: 0 to 12 (Target: 15 segments) ---
+            neg_arc = 100;
+            // 1. Map boost to 0.0 - 15.0 range
+            float segment_index = (constrain(boost, 0.0, 12.0) / 12.0) * 15.0;
+            // 2. Snap to nearest segment (0 through 15)
+            int snapped_segment = round(segment_index);
+            // 3. Scale to 0-100% (6.67% per segment)
+            pos_arc = (int)(snapped_segment * 6.67);
         }
-        //if (boost >= 10.0) last_main_color = lv_color_hex(0xFF0000);
-        //else if (boost >= 5.0) last_main_color = lv_color_hex(0xFF8800);
-        //else last_main_color = lv_color_hex(0xD9D9D9);
     }
 
     if (strcmp(pids[currentPIDIndex], "012F") == 0) {
