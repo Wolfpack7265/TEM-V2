@@ -166,6 +166,7 @@ void parseResponse(const char* pid) {
     }
 
     // Clear buffer for next request
+    lastValidDataTime = millis(); 
     receivedData = "";
 }
 
@@ -189,6 +190,7 @@ int currentPIDIndex = 0;
 const char* pids[] = {"0133", "010B", "012F"}; // Baro, MAP, Fuel
 unsigned long lastActionTime = 0;
 const unsigned long timeout = 400; // 500ms max wait per PID
+unsigned long lastValidDataTime = 0;
 
 struct UIUpdateData {
     int neg_arc;      // For ui_Main_Gauge_Negative (-10 to 0)
@@ -205,6 +207,14 @@ struct UIUpdateData {
 };
 
 void handleOBDStateMachine() {
+// watchdog reset functionality 
+    if (millis() - lastValidDataTime > 5000) {
+        currentState = SENDING;
+        currentPIDIndex = 0;
+        receivedData = "";
+        lastValidDataTime = millis(); // Reset timer to prevent loop spam
+        return;
+    }
     switch (currentState) {
         case SENDING:
             sendOBDCommand(pids[currentPIDIndex]);
