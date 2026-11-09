@@ -142,7 +142,9 @@ void parseResponse(const char* pid) {
 
     // Find the position of the PID echo
     int pidPos = receivedData.indexOf("41"); // 41 is the standard Mode 01 response
-    if (pidPos == -1) return;
+    if (pidPos == -1) 
+        receivedData = ""; //helps clear response buffer
+        return;
 
     // Extract the hex data bytes (assuming standard 2-byte data)
     // The PID is 2 chars, and the data follows immediately
@@ -186,7 +188,7 @@ State currentState = SENDING;
 int currentPIDIndex = 0;
 const char* pids[] = {"0133", "010B", "012F"}; // Baro, MAP, Fuel
 unsigned long lastActionTime = 0;
-const unsigned long timeout = 200; // 500ms max wait per PID
+const unsigned long timeout = 400; // 500ms max wait per PID
 
 struct UIUpdateData {
     int neg_arc;      // For ui_Main_Gauge_Negative (-10 to 0)
