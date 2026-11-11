@@ -306,7 +306,7 @@ void loop() {
         handleOBDStateMachine();
     }
     
-    // Natural LVGL rendering cycle
+   
     lv_timer_handler();
     
     delay(5); // Small delay to let FreeRTOS context-switch cleanly
