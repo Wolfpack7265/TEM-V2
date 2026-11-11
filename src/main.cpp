@@ -273,6 +273,28 @@ void setup_gauge_styles() {
     lv_style_set_arc_color(&style_red, lv_color_hex(0xFF0000));
 }
 
+static void arc_anim_set_value(void * var, int32_t v) {
+    lv_obj_t * obj = (lv_obj_t *)var;
+    if (obj) {
+        lv_arc_set_value(obj, v);
+        lv_obj_invalidate(obj);
+    }
+}
+
+void start_gauge_sweep() {
+    if (!ui_Main_Gauge) return;
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, ui_Main_Gauge);
+    lv_anim_set_exec_cb(&a, arc_anim_set_value);
+    lv_anim_set_values(&a, 0, 100);          // Sweep from empty to full
+    lv_anim_set_time(&a, 500);              
+    lv_anim_set_playback_time(&a, 500);      // xxx ms sweep 
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out); // Smooth acceleration/deceleration
+    lv_anim_start(&a);
+}
+
 void setup() {
     Serial.begin(460800);
     trgb.init();
@@ -292,6 +314,7 @@ void loop() {
     if (doConnect) {
         if (connectToELM327() && initializeELM327()) {
             doConnect = false;
+            start_gauge_sweep();
         }
     } else if (elmDevice == nullptr) {
         lv_label_set_text(ui_Center_Label, "N/A");
