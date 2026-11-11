@@ -178,6 +178,21 @@ struct UIUpdateData {
     }
 };
 
+static void animate_arc(lv_obj_t * arc_obj, int32_t target_value, uint32_t duration) {
+    if (!arc_obj) return;
+    int32_t current_value = lv_arc_get_value(arc_obj);
+    if (current_value == target_value) return; // Skip if values match
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, arc_obj);
+    lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_arc_set_value);
+    lv_anim_set_values(&a, current_value, target_value);
+    lv_anim_set_time(&a, duration); // e.g., 100ms
+    lv_anim_set_path_cb(&a, lv_anim_path_linear); // Linear or ease-out for quick updates
+    lv_anim_start(&a);
+}
+
 void handleOBDStateMachine() {
     if (millis() - lastValidDataTime > 5000) {
         currentState = SENDING;
@@ -235,17 +250,17 @@ void handleOBDStateMachine() {
             lv_async_call([](void* arg) {
                 UIUpdateData* d = (UIUpdateData*)arg;
                 if (ui_Main_Gauge_Negative) {
-                    lv_arc_set_value(ui_Main_Gauge_Negative, d->neg_arc);
+                    animate_arc(ui_Main_Gauge_Negative, d->neg_arc, 100);
                     lv_obj_invalidate(ui_Main_Gauge_Negative);
                 }
                 
                 if (ui_Main_Gauge) {
                     lv_obj_set_style_arc_color(ui_Main_Gauge, d->color, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-                    lv_arc_set_value(ui_Main_Gauge, d->pos_arc);
+                    animate_arc(ui_Main_Gauge, d->pos_arc, 100);
                     lv_obj_invalidate(ui_Main_Gauge);
                 }
                 if (ui_Secondary_Gauge) {
-                    lv_arc_set_value(ui_Secondary_Gauge, d->secondary_arc);
+                    animate_arc(ui_Secondary_Gauge, d->secondary_arc, 100);
                     lv_obj_invalidate(ui_Secondary_Gauge);
                 }
                 if (ui_Secondary_Label) {
