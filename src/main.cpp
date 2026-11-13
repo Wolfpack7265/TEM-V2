@@ -250,17 +250,17 @@ void handleOBDStateMachine() {
             lv_async_call([](void* arg) {
                 UIUpdateData* d = (UIUpdateData*)arg;
                 if (ui_Main_Gauge_Negative) {
-                    animate_arc(ui_Main_Gauge_Negative, d->neg_arc, 100);
+                    animate_arc(ui_Main_Gauge_Negative, d->neg_arc, 200);
                     lv_obj_invalidate(ui_Main_Gauge_Negative);
                 }
                 
                 if (ui_Main_Gauge) {
                     lv_obj_set_style_arc_color(ui_Main_Gauge, d->color, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-                    animate_arc(ui_Main_Gauge, d->pos_arc, 100);
+                    animate_arc(ui_Main_Gauge, d->pos_arc, 200);
                     lv_obj_invalidate(ui_Main_Gauge);
                 }
                 if (ui_Secondary_Gauge) {
-                    animate_arc(ui_Secondary_Gauge, d->secondary_arc, 100);
+                    lv_arc_set_value(ui_Secondary_Gauge, d->secondary_arc); // no animation for secondary 
                     lv_obj_invalidate(ui_Secondary_Gauge);
                 }
                 if (ui_Secondary_Label) {
@@ -298,16 +298,36 @@ static void arc_anim_set_value(void * var, int32_t v) {
 
 void start_gauge_sweep() {
     if (!ui_Main_Gauge) return;
+    lv_anim_t b;
+    lv_anim_init(&b);
+    lv_anim_set_var(&b, ui_Main_Gauge_Negative);
+    lv_anim_set_exec_cb(&b, arc_anim_set_value);
+    lv_anim_set_values(&b, 0, 100);          // Sweep from empty to full
+    lv_anim_set_time(&b, 300);    
+    lv_anim_set_delay(&b, 0);          
+    lv_anim_set_path_cb(&b, lv_anim_path_ease_in_out); // Smooth acceleration/deceleration
+    lv_anim_start(&b);
 
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, ui_Main_Gauge);
     lv_anim_set_exec_cb(&a, arc_anim_set_value);
     lv_anim_set_values(&a, 0, 100);          // Sweep from empty to full
-    lv_anim_set_time(&a, 500);              
-    lv_anim_set_playback_time(&a, 500);      // xxx ms sweep 
+    lv_anim_set_time(&a, 1500);              
+    lv_anim_set_playback_time(&a, 1500);
+    lv_anim_set_delay(&a, 300);      // xxx ms sweep 
     lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out); // Smooth acceleration/deceleration
     lv_anim_start(&a);
+
+    lv_anim_t c;
+    lv_anim_init(&c);
+    lv_anim_set_var(&c, ui_Main_Gauge_Negative);
+    lv_anim_set_exec_cb(&c, arc_anim_set_value);
+    lv_anim_set_values(&c, 100, 0);          // Sweep from full to empty
+    lv_anim_set_time(&c, 300);   
+    lv_anim_set_delay(&c, 3000);           
+    lv_anim_set_path_cb(&c, lv_anim_path_ease_in_out); // Smooth acceleration/deceleration
+    lv_anim_start(&c);
 }
 
 void setup() {
