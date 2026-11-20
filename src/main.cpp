@@ -101,15 +101,14 @@ void sendOBDCommand(String command) {
 }
 
 bool initializeELM327() {
-    sendOBDCommand("ATZ"); delay(2500);
-    sendOBDCommand("ATE0"); delay(500);
-    sendOBDCommand("ATS0"); delay(500);
-    sendOBDCommand("ATL0"); delay(500);
-    sendOBDCommand(OBD_PROTOCOL); delay(2000);
-    sendOBDCommand("ATH0"); delay(500);
-    sendOBDCommand("ATAT2"); delay(500);
-    sendOBDCommand("ATSTFF"); delay(500);
-    sendOBDCommand("ATKW"); delay(500);
+    sendOBDCommand("ATZ");  delay(1200);
+    sendOBDCommand("ATE0"); delay(150); // Echo off
+    sendOBDCommand("ATS0"); delay(150); // Spaces off for smaller BLE payloads
+    sendOBDCommand("ATL0"); delay(150); // Linefeeds off
+    sendOBDCommand("ATH0"); delay(150); // Headers off
+    sendOBDCommand("ATAT2"); delay(150); // Aggressive adaptive timing
+    sendOBDCommand("ATST20"); delay(150); // ~128ms max timeout ceiling (hex x 4)
+    sendOBDCommand(OBD_PROTOCOL); delay(500); // ATSP6 (ISO 15765-4 CAN)
     Serial.println("ELM327 Initialized");
     return true;
 }
@@ -178,6 +177,47 @@ struct UIUpdateData {
     }
 };
 
+static int32_t neg_seg_to_arc(int32_t seg) {
+    seg = constrain(seg, 0, 3);
+    if (seg == 3) return 100;
+    return (int32_t)round(seg * 33.33f); // 0, 33, 67, 100
+}
+
+static int32_t pos_seg_to_arc(int32_t seg) {
+    seg = constrain(seg, 0, 15);
+    if (seg == 15) return 100;
+    return (int32_t)round(seg * 6.67f);  // 0, 7, 13, 20 ... 100
+}
+
+static int32_t arc_to_neg_seg(int32_t arc_val) {
+    return constrain((int32_t)round((constrain(arc_val, 0, 100) / 100.0f) * 3.0f), 0, 3);
+}
+
+static int32_t arc_to_pos_seg(int32_t arc_val) {
+    return constrain((int32_t)round((constrain(arc_val, 0, 100) / 100.0f) * 15.0f), 0, 15);
+}
+
+static void neg_seg_anim_cb(void* var, int32_t seg) {
+    lv_obj_t* obj = (lv_obj_t*)var;
+    if (!obj) return;
+    int32_t next_val = neg_seg_to_arc(seg);
+    if (lv_arc_get_value(obj) != next_val) {
+        lv_arc_set_value(obj, next_val);
+        lv_obj_invalidate(obj);
+    }
+}
+
+static void pos_seg_anim_cb(void* var, int32_t seg) {
+    lv_obj_t* obj = (lv_obj_t*)var;
+    if (!obj) return;
+    int32_t next_val = pos_seg_to_arc(seg);
+    if (lv_arc_get_value(obj) != next_val) {
+        lv_arc_set_value(obj, next_val);
+        lv_obj_invalidate(obj);
+    }
+}
+
+/*
 static void animate_arc(lv_obj_t * arc_obj, int32_t target_value, uint32_t duration) {
     if (!arc_obj) return;
     int32_t current_value = lv_arc_get_value(arc_obj);
@@ -190,6 +230,34 @@ static void animate_arc(lv_obj_t * arc_obj, int32_t target_value, uint32_t durat
     lv_anim_set_values(&a, current_value, target_value);
     lv_anim_set_time(&a, duration); // e.g., 100ms
     lv_anim_set_path_cb(&a, lv_anim_path_linear); // Linear or ease-out for quick updates
+    lv_anim_start(&a);
+}
+
+*/
+
+static void animate_gauge_segments(lv_obj_t* arc_obj, int32_t target_arc_val, bool is_negative, uint32_t duration) {
+    if (!arc_obj) return;
+
+    int32_t current_arc = lv_arc_get_value(arc_obj);
+    int32_t start_seg = is_negative ? arc_to_neg_seg(current_arc) : arc_to_pos_seg(current_arc);
+    int32_t target_seg = is_negative ? arc_to_neg_seg(target_arc_val) : arc_to_pos_seg(target_arc_val);
+
+    if (start_seg == target_seg) {
+        int32_t exact_arc = is_negative ? neg_seg_to_arc(target_seg) : pos_seg_to_arc(target_seg);
+        if (current_arc != exact_arc) {
+            lv_arc_set_value(arc_obj, exact_arc);
+            lv_obj_invalidate(arc_obj);
+        }
+        return;
+    }
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, arc_obj);
+    lv_anim_set_exec_cb(&a, is_negative ? neg_seg_anim_cb : pos_seg_anim_cb);
+    lv_anim_set_values(&a, start_seg, target_seg);
+    lv_anim_set_time(&a, duration);
+    lv_anim_set_path_cb(&a, lv_anim_path_linear);
     lv_anim_start(&a);
 }
 
@@ -250,14 +318,12 @@ void handleOBDStateMachine() {
             lv_async_call([](void* arg) {
                 UIUpdateData* d = (UIUpdateData*)arg;
                 if (ui_Main_Gauge_Negative) {
-                    animate_arc(ui_Main_Gauge_Negative, d->neg_arc, 200);
-                    lv_obj_invalidate(ui_Main_Gauge_Negative);
+                    animate_gauge_segments(ui_Main_Gauge_Negative, d->neg_arc, true, 100);
                 }
                 
                 if (ui_Main_Gauge) {
                     lv_obj_set_style_arc_color(ui_Main_Gauge, d->color, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-                    animate_arc(ui_Main_Gauge, d->pos_arc, 200);
-                    lv_obj_invalidate(ui_Main_Gauge);
+                    animate_gauge_segments(ui_Main_Gauge, d->pos_arc, false, 100);
                 }
                 if (ui_Secondary_Gauge) {
                     lv_arc_set_value(ui_Secondary_Gauge, d->secondary_arc); // no animation for secondary 
@@ -297,36 +363,40 @@ static void arc_anim_set_value(void * var, int32_t v) {
 }
 
 void start_gauge_sweep() {
-    if (!ui_Main_Gauge) return;
+    if (!ui_Main_Gauge || !ui_Main_Gauge_Negative) return;
+
+    // Step 1: Negative gauge sweeps up across 3 segments (0 -> 3)
     lv_anim_t b;
     lv_anim_init(&b);
     lv_anim_set_var(&b, ui_Main_Gauge_Negative);
-    lv_anim_set_exec_cb(&b, arc_anim_set_value);
-    lv_anim_set_values(&b, 0, 100);          // Sweep from empty to full
-    lv_anim_set_time(&b, 300);    
-    lv_anim_set_delay(&b, 0);          
-    lv_anim_set_path_cb(&b, lv_anim_path_ease_in_out); // Smooth acceleration/deceleration
+    lv_anim_set_exec_cb(&b, neg_seg_anim_cb);
+    lv_anim_set_values(&b, 0, 3);
+    lv_anim_set_time(&b, 300);
+    lv_anim_set_delay(&b, 0);
+    lv_anim_set_path_cb(&b, lv_anim_path_linear);
     lv_anim_start(&b);
 
+    // Step 2: Positive gauge sweeps up (0 -> 15 over 500ms) and back (15 -> 0 over 500ms)
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, ui_Main_Gauge);
-    lv_anim_set_exec_cb(&a, arc_anim_set_value);
-    lv_anim_set_values(&a, 0, 100);          // Sweep from empty to full
-    lv_anim_set_time(&a, 1500);              
-    lv_anim_set_playback_time(&a, 1500);
-    lv_anim_set_delay(&a, 300);      // xxx ms sweep 
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out); // Smooth acceleration/deceleration
+    lv_anim_set_exec_cb(&a, pos_seg_anim_cb);
+    lv_anim_set_values(&a, 0, 15);
+    lv_anim_set_time(&a, 1500);
+    lv_anim_set_playback_time(&a, 1500); // Plays 15 -> 0 over 500ms (1000ms total)
+    lv_anim_set_delay(&a, 300);
+    lv_anim_set_path_cb(&a, lv_anim_path_linear);
     lv_anim_start(&a);
 
+    // Step 3: Negative gauge sweeps back down across 3 segments (3 -> 0)
     lv_anim_t c;
     lv_anim_init(&c);
     lv_anim_set_var(&c, ui_Main_Gauge_Negative);
-    lv_anim_set_exec_cb(&c, arc_anim_set_value);
-    lv_anim_set_values(&c, 100, 0);          // Sweep from full to empty
-    lv_anim_set_time(&c, 300);   
-    lv_anim_set_delay(&c, 3000);           
-    lv_anim_set_path_cb(&c, lv_anim_path_ease_in_out); // Smooth acceleration/deceleration
+    lv_anim_set_exec_cb(&c, neg_seg_anim_cb);
+    lv_anim_set_values(&c, 3, 0);
+    lv_anim_set_time(&c, 300);
+    lv_anim_set_delay(&c, 3300); // 250ms + 1000ms
+    lv_anim_set_path_cb(&c, lv_anim_path_linear);
     lv_anim_start(&c);
 }
 
