@@ -261,6 +261,26 @@ static void animate_gauge_segments(lv_obj_t* arc_obj, int32_t target_arc_val, bo
     lv_anim_start(&a);
 }
 
+// Track last applied UI state for secondary gauge & label
+static int32_t applied_secondary_arc = -1;
+static uint32_t applied_secondary_color = 0xFFFFFFFF;
+static char applied_fuel_text[8] = "";
+
+// Placeholders for secondary gauge color thresholds
+#define FUEL_COLOR_WHITE  lv_color_hex(0xD9D9D9) // Placeholder: > 25%
+#define FUEL_COLOR_YELLOW lv_color_hex(0xFFAE00) // Placeholder: 16% to 25%
+#define FUEL_COLOR_RED    lv_color_hex(0xFF0000) // Placeholder: <= 15%
+
+static lv_color_t get_secondary_gauge_color(int fuel_pct) {
+    if (fuel_pct > 25) {
+        return FUEL_COLOR_WHITE;
+    } else if (fuel_pct > 15) {
+        return FUEL_COLOR_YELLOW;
+    } else {
+        return FUEL_COLOR_RED;
+    }
+}
+
 void handleOBDStateMachine() {
     if (millis() - lastValidDataTime > 5000) {
         currentState = SENDING;
@@ -318,15 +338,25 @@ void handleOBDStateMachine() {
             lv_async_call([](void* arg) {
                 UIUpdateData* d = (UIUpdateData*)arg;
                 if (ui_Main_Gauge_Negative) {
-                    animate_gauge_segments(ui_Main_Gauge_Negative, d->neg_arc, true, 100);
+                    lv_arc_set_value(ui_Main_Gauge_Negative, d->neg_arc);
+                    lv_obj_invalidate(ui_Main_Gauge_Negative);
                 }
                 
                 if (ui_Main_Gauge) {
                     lv_obj_set_style_arc_color(ui_Main_Gauge, d->color, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-                    animate_gauge_segments(ui_Main_Gauge, d->pos_arc, false, 100);
+                    lv_arc_set_value(ui_Main_Gauge, d->pos_arc);
+                    lv_obj_invalidate(ui_Main_Gauge);
                 }
-                if (ui_Secondary_Gauge) {
-                    lv_arc_set_value(ui_Secondary_Gauge, d->secondary_arc); // no animation for secondary 
+                if (ui_Secondary_Gauge && d->secondary_arc != applied_secondary_arc) {
+                applied_secondary_arc = d->secondary_arc;
+
+                lv_color_t next_color = get_secondary_gauge_color(d->secondary_arc);
+                if (next_color.full != applied_secondary_color) {
+                    applied_secondary_color = next_color.full;
+                    lv_obj_set_style_arc_color(ui_Secondary_Gauge, next_color, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+                }
+
+                    lv_arc_set_value(ui_Secondary_Gauge, d->secondary_arc);
                     lv_obj_invalidate(ui_Secondary_Gauge);
                 }
                 if (ui_Secondary_Label) {
