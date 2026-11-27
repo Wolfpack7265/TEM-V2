@@ -350,13 +350,18 @@ static void arc_anim_set_value(void * var, int32_t v) {
 
 void start_gauge_sweep() {
     if (!ui_Main_Gauge || !ui_Main_Gauge_Negative) return;
+        lv_arc_set_value(ui_Main_Gauge_Negative, neg_seg_to_arc(0));
+        lv_arc_set_value(ui_Main_Gauge, pos_seg_to_arc(0));
+        lv_obj_invalidate(ui_Main_Gauge);
+        lv_obj_invalidate(ui_Main_Gauge_Negative);
+        lv_timer_handler();
 
     // 1. Negative gauge up (0 -> 3 segments)
     for (int seg = 0; seg <= 3; seg++) {
         lv_arc_set_value(ui_Main_Gauge_Negative, neg_seg_to_arc(seg));
         lv_obj_invalidate(ui_Main_Gauge_Negative);
         lv_timer_handler();
-        delay(100);
+        //delay(25);
     }
 
     // 2. Main positive gauge up (0 -> 15 segments)
@@ -364,7 +369,7 @@ void start_gauge_sweep() {
         lv_arc_set_value(ui_Main_Gauge, pos_seg_to_arc(seg));
         lv_obj_invalidate(ui_Main_Gauge);
         lv_timer_handler();
-        delay(100);
+        //delay(25);
     }
 
     // 3. Main positive gauge down (15 -> 0 segments)
@@ -372,7 +377,7 @@ void start_gauge_sweep() {
         lv_arc_set_value(ui_Main_Gauge, pos_seg_to_arc(seg));
         lv_obj_invalidate(ui_Main_Gauge);
         lv_timer_handler();
-        delay(100);
+        //delay(25);
     }
 
     // 4. Negative gauge down (3 -> 0 segments)
@@ -380,7 +385,7 @@ void start_gauge_sweep() {
         lv_arc_set_value(ui_Main_Gauge_Negative, neg_seg_to_arc(seg));
         lv_obj_invalidate(ui_Main_Gauge_Negative);
         lv_timer_handler();
-        delay(100);
+        //delay(25);
     }
 }
 
