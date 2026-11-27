@@ -177,13 +177,13 @@ struct UIUpdateData {
     }
 };
 
-static int32_t neg_seg_to_arc(int32_t seg) {
+static int32_t neg_seg_to_arc(int32_t seg) { //important 
     seg = constrain(seg, 0, 3);
     if (seg == 3) return 100;
     return (int32_t)round(seg * 33.33f); // 0, 33, 67, 100
 }
 
-static int32_t pos_seg_to_arc(int32_t seg) {
+static int32_t pos_seg_to_arc(int32_t seg) { //important
     seg = constrain(seg, 0, 15);
     if (seg == 15) return 100;
     return (int32_t)round(seg * 6.67f);  // 0, 7, 13, 20 ... 100
@@ -197,25 +197,6 @@ static int32_t arc_to_pos_seg(int32_t arc_val) {
     return constrain((int32_t)round((constrain(arc_val, 0, 100) / 100.0f) * 15.0f), 0, 15);
 }
 
-static void neg_seg_anim_cb(void* var, int32_t seg) {
-    lv_obj_t* obj = (lv_obj_t*)var;
-    if (!obj) return;
-    int32_t next_val = neg_seg_to_arc(seg);
-    if (lv_arc_get_value(obj) != next_val) {
-        lv_arc_set_value(obj, next_val);
-        lv_obj_invalidate(obj);
-    }
-}
-
-static void pos_seg_anim_cb(void* var, int32_t seg) {
-    lv_obj_t* obj = (lv_obj_t*)var;
-    if (!obj) return;
-    int32_t next_val = pos_seg_to_arc(seg);
-    if (lv_arc_get_value(obj) != next_val) {
-        lv_arc_set_value(obj, next_val);
-        lv_obj_invalidate(obj);
-    }
-}
 
 /*
 static void animate_arc(lv_obj_t * arc_obj, int32_t target_value, uint32_t duration) {
@@ -235,31 +216,6 @@ static void animate_arc(lv_obj_t * arc_obj, int32_t target_value, uint32_t durat
 
 */
 
-static void animate_gauge_segments(lv_obj_t* arc_obj, int32_t target_arc_val, bool is_negative, uint32_t duration) {
-    if (!arc_obj) return;
-
-    int32_t current_arc = lv_arc_get_value(arc_obj);
-    int32_t start_seg = is_negative ? arc_to_neg_seg(current_arc) : arc_to_pos_seg(current_arc);
-    int32_t target_seg = is_negative ? arc_to_neg_seg(target_arc_val) : arc_to_pos_seg(target_arc_val);
-
-    if (start_seg == target_seg) {
-        int32_t exact_arc = is_negative ? neg_seg_to_arc(target_seg) : pos_seg_to_arc(target_seg);
-        if (current_arc != exact_arc) {
-            lv_arc_set_value(arc_obj, exact_arc);
-            lv_obj_invalidate(arc_obj);
-        }
-        return;
-    }
-
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, arc_obj);
-    lv_anim_set_exec_cb(&a, is_negative ? neg_seg_anim_cb : pos_seg_anim_cb);
-    lv_anim_set_values(&a, start_seg, target_seg);
-    lv_anim_set_time(&a, duration);
-    lv_anim_set_path_cb(&a, lv_anim_path_linear);
-    lv_anim_start(&a);
-}
 
 // Track last applied UI state for secondary gauge & label
 static int32_t applied_secondary_arc = -1;
@@ -395,39 +351,37 @@ static void arc_anim_set_value(void * var, int32_t v) {
 void start_gauge_sweep() {
     if (!ui_Main_Gauge || !ui_Main_Gauge_Negative) return;
 
-    // Step 1: Negative gauge sweeps up across 3 segments (0 -> 3)
-    lv_anim_t b;
-    lv_anim_init(&b);
-    lv_anim_set_var(&b, ui_Main_Gauge_Negative);
-    lv_anim_set_exec_cb(&b, neg_seg_anim_cb);
-    lv_anim_set_values(&b, 0, 3);
-    lv_anim_set_time(&b, 300);
-    lv_anim_set_delay(&b, 0);
-    lv_anim_set_path_cb(&b, lv_anim_path_linear);
-    lv_anim_start(&b);
+    // 1. Negative gauge up (0 -> 3 segments)
+    for (int seg = 0; seg <= 3; seg++) {
+        lv_arc_set_value(ui_Main_Gauge_Negative, neg_seg_to_arc(seg));
+        lv_obj_invalidate(ui_Main_Gauge_Negative);
+        lv_timer_handler();
+        delay(100);
+    }
 
-    // Step 2: Positive gauge sweeps up (0 -> 15 over 500ms) and back (15 -> 0 over 500ms)
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, ui_Main_Gauge);
-    lv_anim_set_exec_cb(&a, pos_seg_anim_cb);
-    lv_anim_set_values(&a, 0, 15);
-    lv_anim_set_time(&a, 1500);
-    lv_anim_set_playback_time(&a, 1500); // Plays 15 -> 0 over 500ms (1000ms total)
-    lv_anim_set_delay(&a, 300);
-    lv_anim_set_path_cb(&a, lv_anim_path_linear);
-    lv_anim_start(&a);
+    // 2. Main positive gauge up (0 -> 15 segments)
+    for (int seg = 0; seg <= 15; seg++) {
+        lv_arc_set_value(ui_Main_Gauge, pos_seg_to_arc(seg));
+        lv_obj_invalidate(ui_Main_Gauge);
+        lv_timer_handler();
+        delay(100);
+    }
 
-    // Step 3: Negative gauge sweeps back down across 3 segments (3 -> 0)
-    lv_anim_t c;
-    lv_anim_init(&c);
-    lv_anim_set_var(&c, ui_Main_Gauge_Negative);
-    lv_anim_set_exec_cb(&c, neg_seg_anim_cb);
-    lv_anim_set_values(&c, 3, 0);
-    lv_anim_set_time(&c, 300);
-    lv_anim_set_delay(&c, 3300); // 250ms + 1000ms
-    lv_anim_set_path_cb(&c, lv_anim_path_linear);
-    lv_anim_start(&c);
+    // 3. Main positive gauge down (15 -> 0 segments)
+    for (int seg = 15; seg >= 0; seg--) {
+        lv_arc_set_value(ui_Main_Gauge, pos_seg_to_arc(seg));
+        lv_obj_invalidate(ui_Main_Gauge);
+        lv_timer_handler();
+        delay(100);
+    }
+
+    // 4. Negative gauge down (3 -> 0 segments)
+    for (int seg = 3; seg >= 0; seg--) {
+        lv_arc_set_value(ui_Main_Gauge_Negative, neg_seg_to_arc(seg));
+        lv_obj_invalidate(ui_Main_Gauge_Negative);
+        lv_timer_handler();
+        delay(100);
+    }
 }
 
 void setup() {
